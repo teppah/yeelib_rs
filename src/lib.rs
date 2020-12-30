@@ -1,6 +1,6 @@
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 use std::io;
-use socket2::{Socket, Domain, Type, Protocol, SockAddr};
+use std::time::{Duration, Instant};
 
 pub const MULTICAST_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const MULTICAST_PORT: u16 = 1982;
@@ -15,7 +15,7 @@ pub const SEARCH_MSG: &[u8] = b"\
 
 #[derive(Debug)]
 pub struct YeeClient {
-    seeker: Socket,
+    seeker: UdpSocket,
     multicast_addr: SocketAddrV4,
 }
 
@@ -24,23 +24,34 @@ impl YeeClient {
         let addr = SocketAddrV4::new(MULTICAST_ADDR, MULTICAST_PORT);
         Self::with_addr(addr, DEFAULT_LOCAL_PORT)
     }
-    
-    pub fn with_addr(multicast_addr: SocketAddrV4, local_port: u16) -> io::Result<YeeClient> {
-        let socket = Socket::new(Domain::ipv4(),
-                                 Type::dgram(),
-                                 Some(Protocol::udp()))?;
-        socket.join_multicast_v4(multicast_addr.ip(), &Ipv4Addr::UNSPECIFIED)?;
-        // we don't know the IPs of the lights, so listen to all traffic
-        socket.bind(&SockAddr::from(SocketAddrV4::new(ALL_LOCAL, local_port)))?;
 
+    pub fn with_addr(multicast_addr: SocketAddrV4, local_port: u16) -> io::Result<YeeClient> {
+        // we don't know the IPs of the lights, so listen to all traffic
+        let socket = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, local_port))?;
+        socket.join_multicast_v4(multicast_addr.ip(), &Ipv4Addr::UNSPECIFIED)?;
+        socket.set_nonblocking(true)?;
 
         Ok(YeeClient { seeker: socket, multicast_addr })
+    }
+
+    pub fn get_response(&self, timeout: Duration) -> io::Result<()> {
+        self.seeker.send_to(SEARCH_MSG, &self.multicast_addr)?;
+
+        let now = Instant::now();
+        while now.elapsed() < timeout {
+            let mut buf = [0u8; 1024];
+            if let Ok((_amount, _origin)) = self.seeker.recv_from(&mut buf) {
+                println!("---incoming---\n{}", String::from_utf8_lossy(&buf));
+            }
+        }
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::IpAddr;
 
     #[test]
     fn is_multicast() {
@@ -65,7 +76,8 @@ mod tests {
 
         let local_addr = client.seeker.local_addr();
         assert!(local_addr.is_ok());
-        let local_addr = local_addr.unwrap().as_inet().unwrap();
+        let local_addr = local_addr.unwrap();
+        assert_eq!(local_addr.ip(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
         assert_eq!(local_addr.port(), local_port);
     }
 
@@ -83,7 +95,8 @@ mod tests {
 
         let local_addr = client.seeker.local_addr();
         assert!(local_addr.is_ok());
-        let local_addr = local_addr.unwrap().as_inet().unwrap();
+        let local_addr = local_addr.unwrap();
+        assert_eq!(local_addr.ip(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
         assert_eq!(local_addr.port(), DEFAULT_LOCAL_PORT);
     }
 
