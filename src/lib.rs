@@ -1,6 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 use std::io;
 use std::time::{Duration, Instant};
+use std::error::Error;
 
 pub const MULTICAST_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const MULTICAST_PORT: u16 = 1982;
@@ -40,8 +41,25 @@ impl YeeClient {
         let now = Instant::now();
         while now.elapsed() < timeout {
             let mut buf = [0u8; 1024];
-            if let Ok((_amount, _origin)) = self.seeker.recv_from(&mut buf) {
-                println!("---incoming---\n{}", String::from_utf8_lossy(&buf));
+            let mut headers = [httparse::EMPTY_HEADER; 17];
+            let mut res = httparse::Response::new(&mut headers);
+            if let Ok((_amount, origin)) = self.seeker.recv_from(&mut buf) {
+                match res.parse(&buf) {
+                    Ok(status) => {
+                        println!("success: {:?}", status);
+                    }
+                    Err(err) => {
+                        eprintln!("error: {}", err);
+                    }
+                }
+                println!("---From: {}---", origin);
+                res.headers.iter()
+                    .map(|h| {
+                        let name = h.name.to_string();
+                        let value = String::from_utf8_lossy(h.value);
+                        println!("{} --- {}", name, value);
+                    }).count();
+                println!();
             }
         }
         Ok(())
