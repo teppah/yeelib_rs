@@ -23,12 +23,12 @@ pub struct YeeClient {
 }
 
 impl YeeClient {
-    pub fn new() -> io::Result<YeeClient> {
+    pub fn new() -> anyhow::Result<YeeClient> {
         let addr = SocketAddrV4::new(MULTICAST_ADDR, MULTICAST_PORT);
         Self::with_addr(addr, DEFAULT_LOCAL_PORT)
     }
 
-    pub fn with_addr(multicast_addr: SocketAddrV4, local_port: u16) -> io::Result<YeeClient> {
+    pub fn with_addr(multicast_addr: SocketAddrV4, local_port: u16) -> anyhow::Result<YeeClient> {
         // we don't know the IPs of the lights, so listen to all traffic
         let socket = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, local_port))?;
         socket.join_multicast_v4(multicast_addr.ip(), &Ipv4Addr::UNSPECIFIED)?;
@@ -37,7 +37,7 @@ impl YeeClient {
         Ok(YeeClient { seeker: socket, multicast_addr })
     }
 
-    pub fn get_response(&self, timeout: Duration) -> io::Result<()> {
+    pub fn get_response(&self, timeout: Duration) -> anyhow::Result<()> {
         self.seeker.send_to(SEARCH_MSG, &self.multicast_addr)?;
 
         let now = Instant::now();
