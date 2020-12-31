@@ -1,5 +1,6 @@
-use yeelib::YeeClient;
 use std::time::Duration;
+
+use yeelib::YeeClient;
 
 fn main() -> anyhow::Result<()> {
     let client = YeeClient::new()?;

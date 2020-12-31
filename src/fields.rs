@@ -1,17 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Debug)]
-pub struct ParseFieldError(String);
-
-impl std::error::Error for ParseFieldError {}
-
-impl Display for ParseFieldError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "parse field error: {}", self.0)
-    }
-}
-
+use crate::err::YeeError;
 
 #[derive(Debug, Copy, Clone)]
 pub enum PowerStatus {
@@ -29,13 +19,13 @@ impl Display for PowerStatus {
 }
 
 impl FromStr for PowerStatus {
-    type Err = ParseFieldError;
+    type Err = YeeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "on" => Ok(Self::On),
             "off" => Ok(Self::Off),
-            _ => Err(ParseFieldError(String::from(format!("Failed to parse \"{}\" into PowerStatus", s))))
+            _ => Err(YeeError::ParseFieldError(format!("Failed to parse \"{}\" into PowerStatus", s)))
         }
     }
 }
@@ -59,14 +49,14 @@ impl Display for ColorMode {
 }
 
 impl FromStr for ColorMode {
-    type Err = ParseFieldError;
+    type Err = YeeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "1" => Ok(ColorMode::Color),
             "2" => Ok(ColorMode::ColorTemperature),
             "3" => Ok(ColorMode::Hsv),
-            _ => Err(ParseFieldError(format!("Failed to parse \"{}\" into ColorMode", s)))
+            _ => Err(YeeError::ParseFieldError(format!("Failed to parse \"{}\" into ColorMode", s)))
         }
     }
 }

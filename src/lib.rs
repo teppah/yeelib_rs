@@ -1,11 +1,13 @@
-use crate::light::Light;
-use std::net::{Ipv4Addr, UdpSocket, SocketAddrV4, SocketAddr};
-use std::time::{Duration, Instant};
-use std::collections::{HashMap, HashSet};
 use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
+use std::time::{Duration, Instant};
+
+use crate::light::Light;
 
 pub mod light;
 pub mod fields;
+pub mod err;
 
 pub const MULTICAST_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const MULTICAST_PORT: u16 = 1982;

@@ -1,7 +1,9 @@
-use crate::fields::{ColorMode, PowerStatus, Rgb};
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::net::SocketAddrV4;
-use std::collections::{HashSet, HashMap};
-use std::hash::{Hasher, Hash};
+
+use crate::err::YeeError;
+use crate::fields::{ColorMode, PowerStatus, Rgb};
 
 #[derive(Debug)]
 pub struct Light {
@@ -31,17 +33,17 @@ pub struct Light {
 macro_rules! get {
     ($map: expr, $target: expr) => {
         match $map.get($target) {
-            None => anyhow::bail!("Did not find required status \"{}\"", $target),
+            None => return Err(YeeError::ParseFieldError(format!("Did not find required status \"{}\"", $target))),
             Some(val) => val.as_ref()
         }
     };
 }
 
 impl Light {
-    pub(crate) fn from_hashmap<S: AsRef<str>>(map: &HashMap<&str, S>, location: SocketAddrV4) -> anyhow::Result<Light> {
+    pub(crate) fn from_hashmap<S: AsRef<str>>(map: &HashMap<&str, S>, location: SocketAddrV4) -> Result<Light, YeeError> {
         let id: String = get!(map, "id").to_string();
         let model: String = get!(map, "model").to_string();
-        let fw_ver: u8 = get!(map, "fw_ver").parse()?;
+        let fw_ver = get!(map, "fw_ver").parse::<u8>()?;
         let power: PowerStatus = get!(map, "power").parse()?;
         let support: HashSet<String> = get!(map, "support").trim()
             .split_whitespace()
