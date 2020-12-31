@@ -1,9 +1,12 @@
-pub mod light;
-
-use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
-use std::io;
-use std::time::{Duration, Instant};
 use std::error::Error;
+use std::io;
+use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket, SocketAddr};
+use std::time::{Duration, Instant};
+use std::borrow::{Borrow, Cow};
+use std::collections::HashMap;
+use crate::light::Light;
+
+pub mod light;
 
 pub const MULTICAST_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const MULTICAST_PORT: u16 = 1982;
@@ -42,26 +45,26 @@ impl YeeClient {
 
         let now = Instant::now();
         while now.elapsed() < timeout {
-            let mut buf = [0u8; 1024];
+            // all lifetimes depend on buf
+            let mut buf = [0u8; 512];
             let mut headers = [httparse::EMPTY_HEADER; 17];
             let mut res = httparse::Response::new(&mut headers);
-            if let Ok((_amount, origin)) = self.seeker.recv_from(&mut buf) {
-                match res.parse(&buf) {
-                    Ok(status) => {
-                        println!("success: {:?}", status);
-                    }
-                    Err(err) => {
-                        eprintln!("error: {}", err);
-                    }
-                }
-                println!("---From: {}---", origin);
-                res.headers.iter()
+            if let Ok((_size, origin)) = self.seeker.recv_from(&mut buf) {
+                let parsed_str = String::from_utf8(buf.to_vec())?;
+                // ignore invalid header name
+                res.parse(parsed_str.trim().as_bytes());
+                let headers: HashMap<&str, Cow<'_, str>> = res.headers.iter()
                     .map(|h| {
-                        let name = h.name.to_string();
+                        let name = h.name;
                         let value = String::from_utf8_lossy(h.value);
-                        println!("{} --- {}", name, value);
-                    }).count();
-                println!();
+                        (name, value)
+                    }).collect();
+                let origin = match origin {
+                    SocketAddr::V4(v4) => { v4 }
+                    SocketAddr::V6(v6) => panic!("Address of light should not be IPv6: {}", v6)
+                };
+                let new_light = Light::from_hashmap(&headers, origin);
+                println!("{:?}", new_light);
             }
         }
         Ok(())
@@ -70,8 +73,9 @@ impl YeeClient {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::net::IpAddr;
+
+    use super::*;
 
     #[test]
     fn is_multicast() {

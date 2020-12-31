@@ -1,9 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::net::{SocketAddrV4};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::borrow::Borrow;
 
 #[derive(Debug)]
 pub struct Light {
@@ -30,20 +31,49 @@ pub struct Light {
     name: String,
 }
 
+macro_rules! get {
+    ($map: expr, $target: expr) => {
+        match $map.get($target) {
+            None => anyhow::bail!("Did not find required status \"{}\"", $target),
+            Some(val) => val.as_ref()
+        }
+    };
+}
+
 impl Light {
-    pub fn new(location: SocketAddrV4,
-               id: String,
-               model: String,
-               fw_ver: u8,
-               support: HashSet<String>,
-               power: PowerStatus,
-               bright: u8,
-               color_mode: ColorMode,
-               ct: u16,
-               rgb: Rgb,
-               hue: u16,
-               sat: u8,
-               name: String) -> Self {
+    pub(crate) fn from_hashmap<S: AsRef<str>>(map: &HashMap<&str, S>, location: SocketAddrV4) -> anyhow::Result<Light> {
+        let id: String = get!(map, "id").to_string();
+        let model: String = get!(map, "model").to_string();
+        let fw_ver: u8 = get!(map, "fw_ver").parse()?;
+        let power: PowerStatus = get!(map, "power").parse()?;
+        let support: HashSet<String> = get!(map, "support").trim()
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let bright: u8 = get!(map, "bright").parse()?;
+        let color_mode: ColorMode = get!(map, "bright").parse()?;
+        let ct: u16 = get!(map, "ct").parse()?;
+        // TODO: implement rgb
+        let rgb = Rgb::empty();
+        let hue: u16 = get!(map, "hue").parse()?;
+        let sat: u8 = get!(map, "sat").parse()?;
+        let name: String = get!(map, "name").to_string();
+        Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name })
+    }
+
+    pub(crate) fn new(location: SocketAddrV4,
+                      id: String,
+                      model: String,
+                      fw_ver: u8,
+                      support: HashSet<String>,
+                      power: PowerStatus,
+                      bright: u8,
+                      color_mode: ColorMode,
+                      ct: u16,
+                      rgb: Rgb,
+                      hue: u16,
+                      sat: u8,
+                      name: String) -> Self {
         Light {
             location,
             id,
@@ -138,6 +168,15 @@ impl Display for PowerStatus {
 #[derive(Debug)]
 pub struct ParseStateError(String);
 
+impl Display for ParseStateError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "parse state error: {}", self.0)
+    }
+}
+
+impl std::error::Error for ParseStateError {}
+
+
 impl FromStr for PowerStatus {
     type Err = ParseStateError;
 
@@ -172,6 +211,21 @@ impl ColorMode {
             2 => Some(Self::ColorTemperature),
             3 => Some(Self::Hsv),
             _ => None
+        }
+    }
+}
+
+impl FromStr for ColorMode {
+    type Err = ParseStateError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let number = match s.parse::<u8>() {
+            Ok(val) => val,
+            Err(e) => return Err(ParseStateError(format!("Failed to parse \"{}\" into u8: {}", s, e)))
+        };
+        match Self::from_number(number) {
+            Some(val) => Ok(val),
+            None => Err(ParseStateError(format!("Failed to parse \"{}\" into ColorMode", s)))
         }
     }
 }
