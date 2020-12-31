@@ -1,8 +1,5 @@
 use yeelib::YeeClient;
-use std::net::TcpStream;
-use std::thread::sleep;
 use std::time::Duration;
-use std::io::{Write, Read};
 
 fn main() -> anyhow::Result<()> {
     let client = YeeClient::new()?;

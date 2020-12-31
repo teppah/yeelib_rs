@@ -1,10 +1,7 @@
+use crate::fields::{ColorMode, PowerStatus, Rgb};
+use std::net::SocketAddrV4;
 use std::collections::{HashSet, HashMap};
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::net::{SocketAddrV4};
-use std::fmt::{self, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::borrow::Borrow;
+use std::hash::{Hasher, Hash};
 
 #[derive(Debug)]
 pub struct Light {
@@ -61,35 +58,35 @@ impl Light {
         Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name })
     }
 
-    pub(crate) fn new(location: SocketAddrV4,
-                      id: String,
-                      model: String,
-                      fw_ver: u8,
-                      support: HashSet<String>,
-                      power: PowerStatus,
-                      bright: u8,
-                      color_mode: ColorMode,
-                      ct: u16,
-                      rgb: Rgb,
-                      hue: u16,
-                      sat: u8,
-                      name: String) -> Self {
-        Light {
-            location,
-            id,
-            model,
-            fw_ver,
-            support,
-            power,
-            bright,
-            color_mode,
-            ct,
-            rgb,
-            hue,
-            sat,
-            name,
-        }
-    }
+    // pub(crate) fn new(location: SocketAddrV4,
+    //                   id: String,
+    //                   model: String,
+    //                   fw_ver: u8,
+    //                   support: HashSet<String>,
+    //                   power: PowerStatus,
+    //                   bright: u8,
+    //                   color_mode: ColorMode,
+    //                   ct: u16,
+    //                   rgb: Rgb,
+    //                   hue: u16,
+    //                   sat: u8,
+    //                   name: String) -> Self {
+    //     Light {
+    //         location,
+    //         id,
+    //         model,
+    //         fw_ver,
+    //         support,
+    //         power,
+    //         bright,
+    //         color_mode,
+    //         ct,
+    //         rgb,
+    //         hue,
+    //         sat,
+    //         name,
+    //     }
+    // }
     pub fn location(&self) -> &SocketAddrV4 {
         &self.location
     }
@@ -146,106 +143,6 @@ impl Light {
 impl Hash for Light {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(self.id.as_bytes());
-    }
-}
-
-
-#[derive(Debug, Copy, Clone)]
-pub enum PowerStatus {
-    On,
-    Off,
-}
-
-impl Display for PowerStatus {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Off => "off",
-            Self::On => "on"
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct ParseStateError(String);
-
-impl Display for ParseStateError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "parse state error: {}", self.0)
-    }
-}
-
-impl std::error::Error for ParseStateError {}
-
-
-impl FromStr for PowerStatus {
-    type Err = ParseStateError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "on" => Ok(Self::On),
-            "off" => Ok(Self::Off),
-            _ => Err(ParseStateError(String::from(format!("Failed to parse \"{}\" into PowerStatus", s))))
-        }
-    }
-}
-
-impl From<&str> for PowerStatus {
-    fn from(s: &str) -> Self {
-        Self::from_str(&s).unwrap()
-    }
-}
-
-
-#[derive(Debug, Copy, Clone)]
-pub enum ColorMode {
-    Color,
-    ColorTemperature,
-    Hsv,
-}
-
-impl ColorMode {
-    pub fn from_number<N: Into<u8>>(n: N) -> Option<ColorMode> {
-        let n = n.into();
-        match n {
-            1 => Some(Self::Color),
-            2 => Some(Self::ColorTemperature),
-            3 => Some(Self::Hsv),
-            _ => None
-        }
-    }
-}
-
-impl FromStr for ColorMode {
-    type Err = ParseStateError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let number = match s.parse::<u8>() {
-            Ok(val) => val,
-            Err(e) => return Err(ParseStateError(format!("Failed to parse \"{}\" into u8: {}", s, e)))
-        };
-        match Self::from_number(number) {
-            Some(val) => Ok(val),
-            None => Err(ParseStateError(format!("Failed to parse \"{}\" into ColorMode", s)))
-        }
-    }
-}
-
-impl<N: Into<u8>> From<N> for ColorMode {
-    fn from(val: N) -> Self {
-        Self::from_number(val).unwrap()
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Rgb {
-    pub red: u8,
-    pub blue: u8,
-    pub green: u8,
-}
-
-impl Rgb {
-    fn empty() -> Self {
-        Rgb { red: 0, blue: 0, green: 0 }
     }
 }
 
