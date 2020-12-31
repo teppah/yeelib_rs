@@ -3,7 +3,8 @@ use std::time::Duration;
 
 fn main() -> anyhow::Result<()> {
     let client = YeeClient::new()?;
-    client.get_response(Duration::from_millis(6000))?;
+    let res = client.get_response(Duration::from_millis(6000))?;
+    res.iter().for_each(|light| println!("{:?}", light));
 
     // let bright = "{\"id\":23,\"method\":\"set_bright\",\"params\":[100,\"smooth\",4000]}\r\n";
     // let dark = "{\"id\":23,\"method\":\"set_bright\",\"params\":[1,\"smooth\",4000]}\r\n";

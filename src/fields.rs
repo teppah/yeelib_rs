@@ -1,6 +1,17 @@
-use std::fmt::{Display, Formatter};
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
+
+#[derive(Debug)]
+pub struct ParseFieldError(String);
+
+impl std::error::Error for ParseFieldError {}
+
+impl Display for ParseFieldError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "parse field error: {}", self.0)
+    }
+}
+
 
 #[derive(Debug, Copy, Clone)]
 pub enum PowerStatus {
@@ -10,24 +21,12 @@ pub enum PowerStatus {
 
 impl Display for PowerStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
+        write!(f, "PowerStatus({})", match self {
             Self::Off => "off",
             Self::On => "on"
         })
     }
 }
-
-#[derive(Debug)]
-pub struct ParseFieldError(String);
-
-impl Display for ParseFieldError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "parse field error: {}", self.0)
-    }
-}
-
-impl std::error::Error for ParseFieldError {}
-
 
 impl FromStr for PowerStatus {
     type Err = ParseFieldError;
@@ -41,12 +40,6 @@ impl FromStr for PowerStatus {
     }
 }
 
-impl From<&str> for PowerStatus {
-    fn from(s: &str) -> Self {
-        Self::from_str(&s).unwrap()
-    }
-}
-
 
 #[derive(Debug, Copy, Clone)]
 pub enum ColorMode {
@@ -55,15 +48,13 @@ pub enum ColorMode {
     Hsv,
 }
 
-impl ColorMode {
-    pub fn from_number<N: Into<u8>>(n: N) -> Option<ColorMode> {
-        let n = n.into();
-        match n {
-            1 => Some(Self::Color),
-            2 => Some(Self::ColorTemperature),
-            3 => Some(Self::Hsv),
-            _ => None
-        }
+impl Display for ColorMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "ColorMode({})", match self {
+            Self::Color => "color, id=1",
+            Self::ColorTemperature => "color_temperature, id=2",
+            Self::Hsv => "hsv, id=3"
+        })
     }
 }
 
@@ -71,16 +62,15 @@ impl FromStr for ColorMode {
     type Err = ParseFieldError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let number = match s.parse::<u8>() {
-            Ok(val) => val,
-            Err(e) => return Err(ParseFieldError(format!("Failed to parse \"{}\" into u8: {}", s, e)))
-        };
-        match Self::from_number(number) {
-            Some(val) => Ok(val),
-            None => Err(ParseFieldError(format!("Failed to parse \"{}\" into ColorMode", s)))
+        match s {
+            "1" => Ok(ColorMode::Color),
+            "2" => Ok(ColorMode::ColorTemperature),
+            "3" => Ok(ColorMode::Hsv),
+            _ => Err(ParseFieldError(format!("Failed to parse \"{}\" into ColorMode", s)))
         }
     }
 }
+
 
 #[derive(Debug, Copy, Clone)]
 pub struct Rgb {

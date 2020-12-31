@@ -1,7 +1,7 @@
 use crate::light::Light;
 use std::net::{Ipv4Addr, UdpSocket, SocketAddrV4, SocketAddr};
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::borrow::Cow;
 
 pub mod light;
@@ -39,9 +39,10 @@ impl YeeClient {
         Ok(YeeClient { seeker: socket, multicast_addr })
     }
 
-    pub fn get_response(&self, timeout: Duration) -> anyhow::Result<()> {
+    pub fn get_response(&self, timeout: Duration) -> anyhow::Result<Vec<Light>> {
         self.seeker.send_to(SEARCH_MSG, &self.multicast_addr)?;
 
+        let mut lights: HashSet<Light> = HashSet::new();
         let now = Instant::now();
         while now.elapsed() < timeout {
             // all lifetimes depend on buf
@@ -50,7 +51,7 @@ impl YeeClient {
             let mut res = httparse::Response::new(&mut headers);
             if let Ok((_size, origin)) = self.seeker.recv_from(&mut buf) {
                 let parsed_str = String::from_utf8(buf.to_vec())?;
-                // ignore invalid header name
+                // ignore invalid header name for now
                 res.parse(parsed_str.trim().as_bytes());
                 let headers: HashMap<&str, Cow<'_, str>> = res.headers.iter()
                     .map(|h| {
@@ -58,15 +59,18 @@ impl YeeClient {
                         let value = String::from_utf8_lossy(h.value);
                         (name, value)
                     }).collect();
-                let origin = match origin {
+                let origin_addr = match origin {
                     SocketAddr::V4(v4) => { v4 }
                     SocketAddr::V6(v6) => panic!("Address of light should not be IPv6: {}", v6)
                 };
-                let new_light = Light::from_hashmap(&headers, origin);
-                println!("{:?}", new_light);
+                let new_light = Light::from_hashmap(&headers, origin_addr)?;
+                if !lights.contains(&new_light) {
+                    lights.insert(new_light);
+                }
             }
         }
-        Ok(())
+        let lights: Vec<Light> = lights.into_iter().collect();
+        Ok(lights)
     }
 }
 

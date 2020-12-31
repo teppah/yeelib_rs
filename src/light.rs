@@ -58,44 +58,15 @@ impl Light {
         Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name })
     }
 
-    // pub(crate) fn new(location: SocketAddrV4,
-    //                   id: String,
-    //                   model: String,
-    //                   fw_ver: u8,
-    //                   support: HashSet<String>,
-    //                   power: PowerStatus,
-    //                   bright: u8,
-    //                   color_mode: ColorMode,
-    //                   ct: u16,
-    //                   rgb: Rgb,
-    //                   hue: u16,
-    //                   sat: u8,
-    //                   name: String) -> Self {
-    //     Light {
-    //         location,
-    //         id,
-    //         model,
-    //         fw_ver,
-    //         support,
-    //         power,
-    //         bright,
-    //         color_mode,
-    //         ct,
-    //         rgb,
-    //         hue,
-    //         sat,
-    //         name,
-    //     }
-    // }
     pub fn location(&self) -> &SocketAddrV4 {
         &self.location
     }
 
-    pub fn id(&self) -> &String {
+    pub fn id(&self) -> &str {
         &self.id
     }
 
-    pub fn model(&self) -> &String {
+    pub fn model(&self) -> &str {
         &self.model
     }
 
@@ -135,7 +106,7 @@ impl Light {
         self.sat
     }
 
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> &str {
         &self.name
     }
 }
@@ -145,6 +116,14 @@ impl Hash for Light {
         state.write(self.id.as_bytes());
     }
 }
+
+impl PartialEq for Light {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.eq(&other.id)
+    }
+}
+
+impl Eq for Light {}
 
 #[cfg(test)]
 mod tests {
