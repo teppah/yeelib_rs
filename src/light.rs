@@ -40,22 +40,22 @@ macro_rules! get {
 }
 
 impl Light {
-    pub(crate) fn from_hashmap<S: AsRef<str>>(map: &HashMap<&str, S>, location: SocketAddrV4) -> Result<Light, YeeError> {
-        let id: String = get!(map, "id").to_string();
-        let model: String = get!(map, "model").to_string();
-        let fw_ver = get!(map, "fw_ver").parse::<u8>()?;
-        let power: PowerStatus = get!(map, "power").parse()?;
-        let support: HashSet<String> = get!(map, "support").trim()
+    pub fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>, location: SocketAddrV4) -> Result<Light, YeeError> {
+        let id: String = get!(fields, "id").to_string();
+        let model: String = get!(fields, "model").to_string();
+        let fw_ver = get!(fields, "fw_ver").parse::<u8>()?;
+        let power: PowerStatus = get!(fields, "power").parse()?;
+        let support: HashSet<String> = get!(fields, "support").trim()
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
-        let bright: u8 = get!(map, "bright").parse()?;
-        let color_mode: ColorMode = get!(map, "bright").parse()?;
-        let ct: u16 = get!(map, "ct").parse()?;
-        let rgb: Rgb = get!(map, "rgb").parse()?;
-        let hue: u16 = get!(map, "hue").parse()?;
-        let sat: u8 = get!(map, "sat").parse()?;
-        let name: String = get!(map, "name").to_string();
+        let bright: u8 = get!(fields, "bright").parse()?;
+        let color_mode: ColorMode = get!(fields, "color_mode").parse()?;
+        let ct: u16 = get!(fields, "ct").parse()?;
+        let rgb: Rgb = get!(fields, "rgb").parse()?;
+        let hue: u16 = get!(fields, "hue").parse()?;
+        let sat: u8 = get!(fields, "sat").parse()?;
+        let name: String = get!(fields, "name").to_string();
         Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name })
     }
 
@@ -126,6 +126,162 @@ impl PartialEq for Light {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap};
+    use std::net::{Ipv4Addr, SocketAddrV4};
+
+    use super::*;
+
+    macro_rules! map {
+        ($($key:expr => $value: expr), *) => {{
+            let mut map = HashMap::new();
+            $(map.insert($key,$value);)*
+            map
+        }};
+    }
+
+    pub(crate) fn get_map() -> HashMap<&'static str, &'static str> {
+        let mut m: HashMap<&str, &str> =
+            map!(
+            "id" => "0x1234",
+            "model" => "floor",
+            "fw_ver" => "40", // can fail
+            "power" => "on", // can fail
+            "bright" => "34", // can fail
+            "color_mode" => "2", // can fail
+            "ct" => "0", // can fail
+            "rgb" => "657930", // 0A0A0A, can fail
+            "hue" => "314", // can fail
+            "sat" => "12", // can fail
+            "name" => "room_light"
+            );
+        let support = "get_power set_power get_rgb set_rgb";
+        m.insert("support", support);
+        m
+    }
+
     #[test]
-    fn it_works() {}
+    fn get_correct_location() -> anyhow::Result<()> {
+        // given
+        let map = get_map();
+        let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
+
+        // when
+        let light = Light::from_fields(&map, addr)?;
+
+        // then
+        assert_eq!(light.location(), &addr);
+        Ok(())
+    }
+
+    macro_rules! generate_getter_tests {
+        () => {};
+        ($field:ident, $($tail: tt)*) => {
+            #[test]
+            fn $field() -> anyhow::Result<()> {
+                use std::net::{Ipv4Addr, SocketAddrV4};
+
+                // given
+                let map = get_map();
+                let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
+
+                // when
+                let light = Light::from_fields(&map, addr)?;
+
+                // then
+                assert_eq!(map.get(stringify!($field)).unwrap(), &light.$field().to_string());
+                Ok(())
+            }
+        };
+        ($field:ident => $expected: expr, $($tail: tt)*) => {
+            #[test]
+            fn $field() -> anyhow::Result<()> {
+                use std::net::{Ipv4Addr, SocketAddrV4};
+
+                // given
+                let map = get_map();
+                let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
+
+                // when
+                let light = Light::from_fields(&map, addr)?;
+
+                // then
+                assert_eq!(&$expected, light.$field());
+                Ok(())
+            }
+        };
+
+    }
+
+    mod test_get_parse {
+        use super::*;
+
+        generate_getter_tests!(
+            id,
+            model,
+            fw_ver,
+            power,
+            bright,
+            color_mode => ColorMode::ColorTemperature,
+            ct,
+            rgb => Rgb { red: 10, green: 10, blue: 10 },
+            hue,
+            sat,
+            name, );
+    }
+
+    macro_rules! generate_parse_fail_tests {
+        ($($field:ident), *) => {
+            $(
+                #[test]
+                fn $field() {
+                    use std::net::{Ipv4Addr, SocketAddrV4};
+
+                    // given
+                    let mut map = get_map();
+                    let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
+                    map.remove(stringify!($field)).unwrap();
+
+                    // when
+                    let fail = Light::from_fields(&map, addr);
+
+                    // then
+                    assert!(fail.is_err());
+                }
+            )*
+        };
+    }
+
+    mod test_parse_fail {
+        use super::*;
+
+        generate_parse_fail_tests!(
+            id,
+            model,
+            fw_ver,
+            support,
+            power,
+            bright,
+            color_mode,
+            ct,
+            rgb,
+            hue,
+            sat,
+            name);
+    }
+
+    #[test]
+    fn get_correct_support() -> anyhow::Result<()> {
+        // given
+        let map = get_map();
+        let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
+        let expected_fields: HashSet<String> = map.get("support").unwrap().split_whitespace().map(|s| s.to_string()).collect();
+
+        // when
+        let light = Light::from_fields(&map, addr)?;
+
+        // then
+        let support = light.support();
+        assert_eq!(&expected_fields, support);
+        Ok(())
+    }
 }

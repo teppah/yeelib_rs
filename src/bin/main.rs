@@ -4,7 +4,7 @@ use yeelib::YeeClient;
 
 fn main() -> anyhow::Result<()> {
     let client = YeeClient::new()?;
-    let res = client.get_response(Duration::from_millis(6000))?;
+    let res = client.get_response(Duration::from_millis(500))?;
     res.iter().for_each(|light| println!("{:?}", light));
 
     // let bright = "{\"id\":23,\"method\":\"set_bright\",\"params\":[100,\"smooth\",4000]}\r\n";
