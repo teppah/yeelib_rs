@@ -66,6 +66,7 @@ impl YeeClient {
                     SocketAddr::V6(v6) => panic!("Address of light should not be IPv6: {}", v6)
                 };
                 let new_light = Light::from_hashmap(&headers, origin_addr)?;
+                // for deduping responses
                 if !lights.contains(&new_light) {
                     lights.insert(new_light);
                 }
