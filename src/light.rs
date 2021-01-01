@@ -5,7 +5,7 @@ use std::net::SocketAddrV4;
 use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
 
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 pub struct Light {
     location: SocketAddrV4,
     id: String,
@@ -52,8 +52,7 @@ impl Light {
         let bright: u8 = get!(map, "bright").parse()?;
         let color_mode: ColorMode = get!(map, "bright").parse()?;
         let ct: u16 = get!(map, "ct").parse()?;
-        // TODO: implement rgb
-        let rgb = Rgb::empty();
+        let rgb: Rgb = get!(map, "rgb").parse()?;
         let hue: u16 = get!(map, "hue").parse()?;
         let sat: u8 = get!(map, "sat").parse()?;
         let name: String = get!(map, "name").to_string();
@@ -124,8 +123,6 @@ impl PartialEq for Light {
         self.id.eq(&other.id)
     }
 }
-
-impl Eq for Light {}
 
 #[cfg(test)]
 mod tests {

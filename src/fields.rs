@@ -5,7 +5,7 @@ use crate::err::YeeError;
 
 const HEX_FFFFFF: u32 = 16777215;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PowerStatus {
     On,
     Off,
@@ -33,7 +33,7 @@ impl FromStr for PowerStatus {
 }
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ColorMode {
     Color,
     ColorTemperature,
@@ -64,7 +64,7 @@ impl FromStr for ColorMode {
 }
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rgb {
     pub red: u8,
     pub blue: u8,
@@ -89,7 +89,7 @@ impl FromStr for Rgb {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let val = s.parse::<u32>()?;
-        return if !(1..=HEX_FFFFFF).contains(&val) {
+        return if !(0..=HEX_FFFFFF).contains(&val) {
             Err(YeeError::ParseFieldError(format!("Failed to parse \"{}\" into Rgb", s)))
         } else {
             // https://math.stackexchange.com/questions/1635999/algorithm-to-convert-integer-to-3-variables-rgb
@@ -104,6 +104,111 @@ impl FromStr for Rgb {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {}
+    fn correct_parse_power_status() -> anyhow::Result<()> {
+        // given
+        let correct_1 = "on";
+        let correct_2 = "off";
+
+        // when
+        let result_1 = correct_1.parse::<PowerStatus>()?;
+        let result_2 = correct_2.parse::<PowerStatus>()?;
+
+        // then
+        assert_eq!(result_1, PowerStatus::On);
+        assert_eq!(result_2, PowerStatus::Off);
+        Ok(())
+    }
+
+    #[test]
+    fn incorrect_parse_power_status() {
+        // given
+        let incorrect = "ofon";
+
+        // when
+        let incorrect_parsed = incorrect.parse::<PowerStatus>();
+
+        // then
+        assert!(incorrect_parsed.is_err());
+    }
+
+    #[test]
+    fn correct_parse_color_mode() -> anyhow::Result<()> {
+        // given
+        let correct_1 = "1";
+        let correct_2 = "2";
+        let correct_3 = "3";
+
+        // when
+        let parsed_1 = correct_1.parse::<ColorMode>()?;
+        let parsed_2 = correct_2.parse::<ColorMode>()?;
+        let parsed_3 = correct_3.parse::<ColorMode>()?;
+
+        // then
+        assert_eq!(parsed_1, ColorMode::Color);
+        assert_eq!(parsed_2, ColorMode::ColorTemperature);
+        assert_eq!(parsed_3, ColorMode::Hsv);
+
+        Ok(())
+    }
+
+    #[test]
+    fn incorrect_parse_color_mode() {
+        // given
+        let incorrect = "55";
+
+        // when
+        let incorrect_parsed = incorrect.parse::<ColorMode>();
+
+        // then
+        assert!(incorrect_parsed.is_err());
+    }
+
+    #[test]
+    fn correct_parse_rgb() -> anyhow::Result<()> {
+        // given
+        let rgb_1 = "1518204"; // hex: 172A7C
+        let rgb_2 = "16777215"; // hex: FFFFFF
+        let rgb_3 = "0";
+
+        // when
+        let parsed_1 = rgb_1.parse::<Rgb>()?;
+        let parsed_2 = rgb_2.parse::<Rgb>()?;
+        let parsed_3 = rgb_3.parse::<Rgb>()?;
+
+        // then
+        assert_eq!(parsed_1.red, 23);
+        assert_eq!(parsed_1.blue, 124);
+        assert_eq!(parsed_1.green, 42);
+
+        assert_eq!(parsed_2.red, 255);
+        assert_eq!(parsed_2.blue, 255);
+        assert_eq!(parsed_2.green, 255);
+
+        assert_eq!(parsed_3.red, 0);
+        assert_eq!(parsed_3.blue, 0);
+        assert_eq!(parsed_3.green, 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn incorrect_parse_rgb() {
+        // given
+        let incorrect_1 = "-5";
+        let incorrect_2 = "564123564";
+        let incorrect_3 = "fsdkl";
+
+        // when
+        let parsed_1 = incorrect_1.parse::<Rgb>();
+        let parsed_2 = incorrect_2.parse::<Rgb>();
+        let parsed_3 = incorrect_3.parse::<Rgb>();
+
+        // then
+        assert!(parsed_1.is_err());
+        assert!(parsed_2.is_err());
+        assert!(parsed_3.is_err());
+    }
 }
