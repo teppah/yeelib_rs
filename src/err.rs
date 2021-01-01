@@ -21,7 +21,7 @@ impl Display for YeeError {
 impl Error for YeeError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            YeeError::ParseFieldError(s) => None,
+            YeeError::ParseFieldError(_) => None,
         }
     }
 }

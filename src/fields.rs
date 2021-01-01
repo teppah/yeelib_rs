@@ -89,7 +89,7 @@ impl FromStr for Rgb {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let val = s.parse::<u32>()?;
-        return if !(0..=HEX_FFFFFF).contains(&val) {
+        if !(0..=HEX_FFFFFF).contains(&val) {
             Err(YeeError::ParseFieldError(format!("Failed to parse \"{}\" into Rgb", s)))
         } else {
             // https://math.stackexchange.com/questions/1635999/algorithm-to-convert-integer-to-3-variables-rgb
@@ -97,7 +97,7 @@ impl FromStr for Rgb {
             let green = (((val - blue as u32) / 256) % 256) as u8;
             let red = ((((val - blue as u32) / 256) - green as u32) / 256) as u8;
             Ok(Rgb { red, green, blue })
-        };
+        }
     }
 }
 
