@@ -23,10 +23,7 @@ impl Display for YeeError {
 impl Error for YeeError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            YeeError::ParseFieldError { source, .. } => match *source {
-                Some(ref x) => Some(x),
-                None => None
-            },
+            YeeError::ParseFieldError { source, .. } => source.as_ref().map(|v| v as _),
             YeeError::FieldNotFound { .. } => None
         }
     }

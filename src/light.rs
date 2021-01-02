@@ -213,6 +213,7 @@ mod tests {
                 assert_eq!(map.get(stringify!($field)).unwrap(), &light.$field().to_string());
                 Ok(())
             }
+            generate_getter_tests!($($tail)*);
         };
         ($field:ident => $expected: expr, $($tail: tt)*) => {
             #[test]
@@ -230,6 +231,7 @@ mod tests {
                 assert_eq!(&$expected, light.$field());
                 Ok(())
             }
+            generate_getter_tests!($($tail)*);
         };
 
     }
