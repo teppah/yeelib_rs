@@ -4,6 +4,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
 use std::time::{Duration, Instant};
 
 use crate::light::Light;
+use crate::err::YeeError;
 
 pub mod light;
 pub mod fields;
@@ -27,12 +28,12 @@ pub struct YeeClient {
 }
 
 impl YeeClient {
-    pub fn new() -> anyhow::Result<YeeClient> {
+    pub fn new() -> Result<YeeClient, YeeError> {
         let addr = SocketAddrV4::new(MULTICAST_ADDR, MULTICAST_PORT);
         Self::with_addr(addr, DEFAULT_LOCAL_PORT)
     }
 
-    pub fn with_addr(multicast_addr: SocketAddrV4, local_port: u16) -> anyhow::Result<YeeClient> {
+    pub fn with_addr(multicast_addr: SocketAddrV4, local_port: u16) -> Result<YeeClient, YeeError> {
         // we don't know the IPs of the lights, so listen to all traffic
         let socket = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, local_port))?;
         socket.join_multicast_v4(multicast_addr.ip(), &Ipv4Addr::UNSPECIFIED)?;
@@ -74,7 +75,6 @@ impl YeeClient {
 
                 match Light::from_fields(&headers, origin_addr) {
                     Ok(new_light) => {
-
                         // for deduping responses
                         if !lights.contains(&new_light) {
                             lights.insert(new_light);
