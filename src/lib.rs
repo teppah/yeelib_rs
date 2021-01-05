@@ -54,15 +54,10 @@ impl YeeClient {
             let mut headers = [httparse::EMPTY_HEADER; 17];
             let mut res = httparse::Response::new(&mut headers);
 
-            // TODO: use _size to give a slice of buf, thus avoiding cleaning steps
-            if let Ok((_size, origin)) = self.seeker.recv_from(&mut buf) {
-                let parsed_str = String::from_utf8_lossy(&buf);
-                // remove trailing null chars from the array
-                let cleaned = parsed_str.trim_matches(char::from(0));
-
+            if let Ok((size, origin)) = self.seeker.recv_from(&mut buf) {
                 // TODO: handle if failed to parse response
-                res.parse(cleaned.trim().as_bytes()).unwrap();
-                let headers: HashMap<&str, Cow<'_, str>> = res.headers.iter()
+                res.parse(&buf[..size]).unwrap();
+                let headers: HashMap<&str, _> = res.headers.iter()
                     .map(|h| {
                         let name = h.name;
                         let value = String::from_utf8_lossy(h.value);
@@ -75,14 +70,11 @@ impl YeeClient {
 
                 match Light::from_fields(&headers, origin_addr) {
                     Ok(new_light) => {
-                        // for deduping responses
                         if !lights.contains(&new_light) {
                             lights.insert(new_light);
                         }
                     }
-                    Err(_) => {
-                        // TODO: handle error
-                    }
+                    Err(_) => {}
                 }
             }
         }
@@ -275,6 +267,55 @@ name: light_one\r\n";
 
         // THEN
         assert_eq!(result.len(), 3);
+
+        Ok(())
+    }
+
+    #[test]
+    fn discard_missing_field_response() -> anyhow::Result<()> {
+        // GIVEN
+        let client_port = 23534;
+        let multicast_port = 65487;
+        let fake_multicast_addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, multicast_port);
+
+        // listener just needs to exist, don't need to use
+        let _multicast_listener = UdpSocket::bind(fake_multicast_addr)?;
+        let client_addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, client_port);
+        let fake_sender = UdpSocket::bind(client_addr)?;
+
+        fake_sender.set_nonblocking(true)?;
+        let client = YeeClient { seeker: fake_sender, multicast_addr: fake_multicast_addr };
+
+        // send mock messages
+        let fake_port_1 = 63112;
+        let fake_light_1 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_1))?;
+        // there are already newlines in the string, so need to add \n
+        // missing color_mode
+        let fake_msg_1 = "HTTP/1.1 200 OK\r
+Cache-Control: max-age=3600\r
+Date: \r
+Ext: \r
+Location: yeelight://192.168.1.234:54321\r
+Server: POSIX UPnP/1.0 YGLC/1\r
+id: 0xabcde12345\r
+model: lamp\r
+fw_ver: 20\r
+support: get_prop cron_get cron_del adjust_bright adjust_ct\r
+power: off\r
+bright: 0\r
+ct: 1000\r
+rgb: 125\r
+hue: 245\r
+sat: 98\r
+name: light_one\r\n";
+        fake_light_1.send_to(fake_msg_1.as_bytes(), client_addr)?;
+        drop(fake_light_1);
+
+        // when
+        let result = client.get_response(Duration::from_millis(500));
+
+        // THEN
+        assert_eq!(result.len(), 0);
 
         Ok(())
     }
