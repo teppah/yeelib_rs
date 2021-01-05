@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
 use std::time::{Duration, Instant};
@@ -69,7 +68,7 @@ impl YeeClient {
                 };
 
                 match Light::from_fields(&headers, origin_addr) {
-                    Ok(new_light) => {
+                    Ok(mut new_light) => {
                         if !lights.contains(&new_light) {
                             lights.insert(new_light);
                         }
@@ -238,7 +237,7 @@ name: light_one\r\n";
         fake_light_2.send_to(fake_msg_2.as_bytes(), client_addr)?;
         drop(fake_light_2);
 
-        let fake_port_3 = 23449;
+        let fake_port_3 = 13445;
         let fake_light_3 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_3))?;
         // there are already newlines in the string, so need to add \n
         let fake_msg_3 = "HTTP/1.1 200 OK\r
@@ -274,7 +273,7 @@ name: light_one\r\n";
     #[test]
     fn discard_missing_field_response() -> anyhow::Result<()> {
         // GIVEN
-        let client_port = 23534;
+        let client_port = 56443;
         let multicast_port = 65487;
         let fake_multicast_addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, multicast_port);
 
@@ -287,7 +286,7 @@ name: light_one\r\n";
         let client = YeeClient { seeker: fake_sender, multicast_addr: fake_multicast_addr };
 
         // send mock messages
-        let fake_port_1 = 63112;
+        let fake_port_1 = 56356;
         let fake_light_1 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_1))?;
         // there are already newlines in the string, so need to add \n
         // missing color_mode

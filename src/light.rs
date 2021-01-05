@@ -30,54 +30,51 @@ pub struct Light {
     name: String,
 }
 
-// only accepts primitive types
-// no From<ParseIntError> to then use `?`, since the goal is to give more information about which field is missing
-// so we don't want to parse custom types, as the already implement FromStr, and that adds an additional layer
-// of error handling that would get way messier
-macro_rules! get_base {
+macro_rules! get_field {
+    // for strings
     ($map: expr, $field: expr) => {
-        match $map.get($field) {
-            None => Err(YeeError::FieldNotFound{ field_name: stringify!($field) }),
-            Some(val) => Ok(val.as_ref())
-        }
+        $map.get($field)
+            .map(|s| s.as_ref())
+            .ok_or(YeeError::FieldNotFound { field_name: stringify!($field) })
     };
+    // for primitive types
     ($map: expr, $field: expr, $target_type: ty) => {
         $map.get($field)
             .ok_or(YeeError::FieldNotFound { field_name: stringify!($field) })
             .and_then(|s| {
                 let s = s.as_ref();
-                match s.parse::<$target_type>() {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(YeeError::ParseFieldError { field_name: stringify!($field), source: Some(e)})
-                }
+                s.parse::<$target_type>()
+                    .map_err(|e| YeeError::ParseFieldError { field_name: stringify!($field), source: Some(e)})
             })
-        // match $map.get($field) {
-        //     None => return Err(YeeError::FieldNotFound{ field_name: stringify!($field) }),
-        //     Some(val) => {
-        //         let val = val.as_ref();
-        //
-        //     }
-        // }
+    };
+    // for custom FromStr types
+    ($map: expr, $field: expr, $target_type: ty, $is_custom_type_marker: expr) => {
+        $map.get($field)
+            .ok_or(YeeError::FieldNotFound { field_name: stringify!($field) })
+            .and_then(|s| {
+                let s = s.as_ref();
+                s.parse::<$target_type>()
+            })
     };
 }
 
 impl Light {
     pub fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>, location: SocketAddrV4) -> Result<Light, YeeError> {
-        let id = get_base!(fields, "id")?.to_string();
-        let model = get_base!(fields, "model")?.to_string();
-        let fw_ver = get_base!(fields, "fw_ver", u8)?;
-        let power = get_base!(fields, "power")?.parse::<PowerStatus>()?;
-        let support: HashSet<String> = get_base!(fields, "support")?.trim()
+        let id = get_field!(fields, "id")?.to_string();
+        let model = get_field!(fields, "model")?.to_string();
+        let fw_ver = get_field!(fields, "fw_ver", u8)?;
+        let power = get_field!(fields, "power", PowerStatus, true)?;
+        let support: HashSet<String> = get_field!(fields, "support")?.trim()
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
-        let bright = get_base!(fields, "bright", u8)?;
-        let color_mode = get_base!(fields, "color_mode")?.parse::<ColorMode>()?;
-        let ct = get_base!(fields, "ct", u16)?;
-        let rgb = get_base!(fields, "rgb")?.parse::<Rgb>()?;
-        let hue: u16 = get_base!(fields, "hue", u16)?;
-        let sat = get_base!(fields, "sat", u8)?;
-        let name = get_base!(fields, "name")?.to_string();
+        let bright = get_field!(fields, "bright", u8)?;
+        let color_mode = get_field!(fields, "color_mode", ColorMode, true)?;
+        let ct = get_field!(fields, "ct", u16)?;
+        let rgb = get_field!(fields, "rgb", Rgb, true)?;
+        let hue: u16 = get_field!(fields, "hue", u16)?;
+        let sat = get_field!(fields, "sat", u8)?;
+        let name = get_field!(fields, "name")?.to_string();
         Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name })
     }
 
