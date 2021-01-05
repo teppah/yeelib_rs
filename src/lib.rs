@@ -70,7 +70,10 @@ impl YeeClient {
                 match Light::from_fields(&headers, origin_addr) {
                     Ok(mut new_light) => {
                         if !lights.contains(&new_light) {
-                            lights.insert(new_light);
+                            match new_light.init() {
+                                Ok(_) => { lights.insert(new_light); }
+                                _ => () // ignore errors
+                            }
                         }
                     }
                     Err(_) => {}
@@ -84,7 +87,7 @@ impl YeeClient {
 
 #[cfg(test)]
 mod tests {
-    use std::net::IpAddr;
+    use std::net::{IpAddr, TcpStream, TcpListener};
 
     use super::*;
 
@@ -180,7 +183,7 @@ mod tests {
         let multicast_port = 50945;
         let fake_multicast_addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, multicast_port);
 
-        // listener just needs to exist, don't need to use
+        // multicast listener just needs to exist, don't need to use
         let _multicast_listener = UdpSocket::bind(fake_multicast_addr)?;
         let client_addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, client_port);
         let fake_sender = UdpSocket::bind(client_addr)?;
@@ -189,8 +192,8 @@ mod tests {
         let client = YeeClient { seeker: fake_sender, multicast_addr: fake_multicast_addr };
 
         // send mock messages
-        let fake_port_1 = 63112;
-        let fake_light_1 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_1))?;
+        let fake_addr_1 = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 9889);
+        let fake_light_1 = UdpSocket::bind(fake_addr_1)?;
         // there are already newlines in the string, so need to add \n
         let fake_msg_1 = "HTTP/1.1 200 OK\r
 Cache-Control: max-age=3600\r
@@ -212,9 +215,10 @@ sat: 100\r
 name: light_one\r\n";
         fake_light_1.send_to(fake_msg_1.as_bytes(), client_addr)?;
         drop(fake_light_1);
+        let fake_listener_1 = TcpListener::bind(fake_addr_1)?;
 
-        let fake_port_2 = 23449;
-        let fake_light_2 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_2))?;
+        let fake_addr_2 = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 23449);
+        let fake_light_2 = UdpSocket::bind(fake_addr_2)?;
         // there are already newlines in the string, so need to add \n
         let fake_msg_2 = "HTTP/1.1 200 OK\r
 Cache-Control: max-age=3600\r
@@ -236,9 +240,10 @@ sat: 98\r
 name: light_one\r\n";
         fake_light_2.send_to(fake_msg_2.as_bytes(), client_addr)?;
         drop(fake_light_2);
+        let fake_listener_2 = TcpListener::bind(fake_addr_2)?;
 
-        let fake_port_3 = 13445;
-        let fake_light_3 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_3))?;
+        let fake_addr_3 = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 13445);
+        let fake_light_3 = UdpSocket::bind(fake_addr_3)?;
         // there are already newlines in the string, so need to add \n
         let fake_msg_3 = "HTTP/1.1 200 OK\r
 Cache-Control: max-age=3600\r
@@ -260,6 +265,7 @@ sat: 45\r
 name: light_one\r\n";
         fake_light_3.send_to(fake_msg_3.as_bytes(), client_addr)?;
         drop(fake_light_3);
+        let fake_listener_3 = TcpListener::bind(fake_addr_3)?;
 
         // WHEN
         let result = client.get_response(Duration::from_millis(500));
@@ -286,8 +292,8 @@ name: light_one\r\n";
         let client = YeeClient { seeker: fake_sender, multicast_addr: fake_multicast_addr };
 
         // send mock messages
-        let fake_port_1 = 56356;
-        let fake_light_1 = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port_1))?;
+        let fake_addr_1 = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 56356);
+        let fake_light_1 = UdpSocket::bind(fake_addr_1)?;
         // there are already newlines in the string, so need to add \n
         // missing color_mode
         let fake_msg_1 = "HTTP/1.1 200 OK\r
@@ -309,6 +315,7 @@ sat: 98\r
 name: light_one\r\n";
         fake_light_1.send_to(fake_msg_1.as_bytes(), client_addr)?;
         drop(fake_light_1);
+        let fake_listener_1 = TcpListener::bind(fake_addr_1)?;
 
         // when
         let result = client.get_response(Duration::from_millis(500));
@@ -335,8 +342,8 @@ name: light_one\r\n";
         let client = YeeClient { seeker: fake_sender, multicast_addr: fake_multicast_addr };
 
         // send mock messages
-        let fake_port = 23395;
-        let fake_light = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, fake_port))?;
+        let fake_addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 23395);
+        let fake_light = UdpSocket::bind(fake_addr)?;
         // there are already newlines in the string, so need to add \n
         let fake_msg = "HTTP/1.1 200 OK\r
 Cache-Control: max-age=3600\r
@@ -366,6 +373,7 @@ name: light_one\r\n";
         fake_light.send_to(fake_msg.as_bytes(), client_addr)?;
         fake_light.send_to(fake_msg.as_bytes(), client_addr)?;
         drop(fake_light);
+        let fake_listener = TcpListener::bind(fake_addr)?;
 
         // WHEN
         let result = client.get_response(Duration::from_millis(500));

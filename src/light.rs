@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::net::SocketAddrV4;
+use std::net::{SocketAddrV4, TcpStream};
 
 use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
 
-#[derive(Debug, Eq)]
+#[derive(Debug)]
 pub struct Light {
     location: SocketAddrV4,
     id: String,
@@ -28,6 +28,10 @@ pub struct Light {
     sat: u8,
 
     name: String,
+
+    // wrapped in option for late init
+    // if successfully made a Light, can always assume it is valid
+    connection: Option<TcpStream>,
 }
 
 macro_rules! get_field {
@@ -75,7 +79,14 @@ impl Light {
         let hue: u16 = get_field!(fields, "hue", u16)?;
         let sat = get_field!(fields, "sat", u8)?;
         let name = get_field!(fields, "name")?.to_string();
-        Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name })
+
+        Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name, connection: None })
+    }
+
+    pub(crate) fn init(&mut self) -> Result<(), YeeError> {
+        let connection = TcpStream::connect(self.location)?;
+        self.connection = Some(connection);
+        Ok(())
     }
 
     pub fn location(&self) -> &SocketAddrV4 {
@@ -143,12 +154,15 @@ impl PartialEq for Light {
     }
 }
 
+impl Eq for Light {}
+
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap};
-    use std::net::{Ipv4Addr, SocketAddrV4};
+    use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 
     use super::*;
+    use std::any::Any;
 
     macro_rules! map {
         ($($key:expr => $value: expr), *) => {{
@@ -303,6 +317,22 @@ mod tests {
         // then
         let support = light.support();
         assert_eq!(&expected_fields, support);
+        Ok(())
+    }
+
+    #[test]
+    fn correctly_connects() -> anyhow::Result<()> {
+        // given
+        let map = get_map();
+        let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 13244);
+        let fake_listener = TcpListener::bind(addr)?;
+
+        // when
+        let mut light = Light::from_fields(&map, addr)?;
+        light.init()?;
+
+        // then
+        assert!(light.connection.is_some());
         Ok(())
     }
 }
