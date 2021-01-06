@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::net::{SocketAddrV4, TcpStream};
+use std::net::{SocketAddrV4, TcpStream, SocketAddr};
 
 use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
+use regex::Regex;
 
 #[derive(Debug)]
 pub struct Light {
@@ -31,7 +32,12 @@ pub struct Light {
 
     // wrapped in option for late init
     // if successfully made a Light, can always assume it is valid
-    connection: Option<TcpStream>,
+    pub(crate) connection: Option<TcpStream>,
+}
+
+use lazy_static::*;
+lazy_static! {
+    static ref MATCH_IP: Regex = Regex::new("yeelight://(.*)").unwrap();
 }
 
 macro_rules! get_field {
@@ -63,7 +69,7 @@ macro_rules! get_field {
 }
 
 impl Light {
-    pub fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>, location: SocketAddrV4) -> Result<Light, YeeError> {
+    pub fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>) -> Result<Light, YeeError> {
         let id = get_field!(fields, "id")?.to_string();
         let model = get_field!(fields, "model")?.to_string();
         let fw_ver = get_field!(fields, "fw_ver", u8)?;
@@ -80,10 +86,32 @@ impl Light {
         let sat = get_field!(fields, "sat", u8)?;
         let name = get_field!(fields, "name")?.to_string();
 
+        let location = get_field!(fields,"Location")?;
+        let captures = MATCH_IP
+            .captures(location)
+            .ok_or(YeeError::ParseFieldError { field_name: "Location", source: None })
+            .and_then(|c| c
+                .get(1)
+                .ok_or(YeeError::ParseFieldError { field_name: "Location", source: None })
+            )
+            .and_then(|m| m
+                .as_str()
+                .parse::<SocketAddr>()
+                .map_err(|_| YeeError::ParseFieldError { field_name: "Location", source: None })
+            )
+            ?;
+        let location = match captures {
+            SocketAddr::V4(v4) => v4,
+            _ => panic!("Light should not have an IPv6 address")
+        };
+
         Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name, connection: None })
     }
 
     pub(crate) fn init(&mut self) -> Result<(), YeeError> {
+        if self.connection.is_some() {
+            return Ok(());
+        }
         let connection = TcpStream::connect(self.location)?;
         self.connection = Some(connection);
         Ok(())
@@ -159,10 +187,9 @@ impl Eq for Light {}
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap};
-    use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
+    use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, IpAddr};
 
     use super::*;
-    use std::any::Any;
 
     macro_rules! map {
         ($($key:expr => $value: expr), *) => {{
@@ -185,7 +212,8 @@ mod tests {
             "rgb" => "657930", // 0A0A0A, can fail
             "hue" => "314", // can fail
             "sat" => "12", // can fail
-            "name" => "room_light"
+            "name" => "room_light",
+            "Location" => "yeelight://127.0.0.1:13454"
             );
         let support = "get_power set_power get_rgb set_rgb";
         m.insert("support", support);
@@ -196,13 +224,16 @@ mod tests {
     fn get_correct_location() -> anyhow::Result<()> {
         // given
         let map = get_map();
-        let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
+        let expected_addr = match SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), 13454) {
+            SocketAddr::V4(v4) => v4,
+            _ => unreachable!()
+        };
 
         // when
-        let light = Light::from_fields(&map, addr)?;
+        let light = Light::from_fields(&map)?;
 
         // then
-        assert_eq!(light.location(), &addr);
+        assert_eq!(*light.location(), expected_addr);
         Ok(())
     }
 
@@ -211,14 +242,12 @@ mod tests {
         ($field:ident, $($tail: tt)*) => {
             #[test]
             fn $field() -> anyhow::Result<()> {
-                use std::net::{Ipv4Addr, SocketAddrV4};
 
                 // given
                 let map = get_map();
-                let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
 
                 // when
-                let light = Light::from_fields(&map, addr)?;
+                let light = Light::from_fields(&map)?;
 
                 // then
                 assert_eq!(map.get(stringify!($field)).unwrap(), &light.$field().to_string());
@@ -229,14 +258,12 @@ mod tests {
         ($field:ident => $expected: expr, $($tail: tt)*) => {
             #[test]
             fn $field() -> anyhow::Result<()> {
-                use std::net::{Ipv4Addr, SocketAddrV4};
 
                 // given
                 let map = get_map();
-                let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
 
                 // when
-                let light = Light::from_fields(&map, addr)?;
+                let light = Light::from_fields(&map)?;
 
                 // then
                 assert_eq!(&$expected, light.$field());
@@ -269,15 +296,13 @@ mod tests {
             $(
                 #[test]
                 fn $field() {
-                    use std::net::{Ipv4Addr, SocketAddrV4};
 
                     // given
                     let mut map = get_map();
-                    let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
                     map.remove(stringify!($field)).unwrap();
 
                     // when
-                    let fail = Light::from_fields(&map, addr);
+                    let fail = Light::from_fields(&map);
 
                     // then
                     assert!(fail.is_err());
@@ -308,11 +333,10 @@ mod tests {
     fn get_correct_support() -> anyhow::Result<()> {
         // given
         let map = get_map();
-        let addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 42), 1234);
         let expected_fields: HashSet<String> = map.get("support").unwrap().split_whitespace().map(|s| s.to_string()).collect();
 
         // when
-        let light = Light::from_fields(&map, addr)?;
+        let light = Light::from_fields(&map)?;
 
         // then
         let support = light.support();
@@ -324,11 +348,11 @@ mod tests {
     fn correctly_connects() -> anyhow::Result<()> {
         // given
         let map = get_map();
-        let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 13244);
-        let fake_listener = TcpListener::bind(addr)?;
+        let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 13454);
+        let _fake_listener = TcpListener::bind(addr)?;
 
         // when
-        let mut light = Light::from_fields(&map, addr)?;
+        let mut light = Light::from_fields(&map)?;
         light.init()?;
 
         // then

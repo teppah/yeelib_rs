@@ -1,15 +1,17 @@
 use std::time::Duration;
 
 use yeelib::YeeClient;
+use std::net::TcpStream;
+use std::thread::sleep;
+use std::io::{Write, Read};
 
 fn main() -> anyhow::Result<()> {
     let client = YeeClient::new()?;
-    let res = client.get_response(Duration::from_millis(500));
+    let res = client.get_response(Duration::from_secs(1));
     res.iter().for_each(|light| println!("{:?}", light));
 
-    let bright = "{\"id\":23,\"method\":\"set_bright\",\"params\":[100,\"smooth\",4000]}\r\n";
-    let dark = "{\"id\":23,\"method\":\"set_bright\",\"params\":[1,\"smooth\",4000]}\r\n";
-
+    // let bright = "{\"id\":23,\"method\":\"set_bright\",\"params\":[100,\"smooth\",4000]}\r\n";
+    // let dark = "{\"id\":23,\"method\":\"set_bright\",\"params\":[1,\"smooth\",4000]}\r\n";
     // let mut ceiling_light = TcpStream::connect("192.168.2.24:55443")?;
     // loop {
     //     let mut buf = [0u8; 128];

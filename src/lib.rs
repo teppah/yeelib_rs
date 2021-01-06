@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
+use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 use std::time::{Duration, Instant};
 
 use crate::light::Light;
@@ -14,7 +14,7 @@ pub const MULTICAST_PORT: u16 = 1982;
 pub const ALL_LOCAL: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 pub const DEFAULT_LOCAL_PORT: u16 = 7821;
 
-pub const SEARCH_MSG: &'static str = "\
+pub const SEARCH_MSG: &str = "\
     M-SEARCH * HTTP/1.1\r\n\
     HOST: 239.255.255.250:1982\r\n\
     MAN: \"ssdp:discover\"\r\n\
@@ -53,7 +53,7 @@ impl YeeClient {
             let mut headers = [httparse::EMPTY_HEADER; 17];
             let mut res = httparse::Response::new(&mut headers);
 
-            if let Ok((size, origin)) = self.seeker.recv_from(&mut buf) {
+            if let Ok((size, _)) = self.seeker.recv_from(&mut buf) {
                 // TODO: handle if failed to parse response
                 res.parse(&buf[..size]).unwrap();
                 let headers: HashMap<&str, _> = res.headers.iter()
@@ -62,17 +62,11 @@ impl YeeClient {
                         let value = String::from_utf8_lossy(h.value);
                         (name, value)
                     }).collect();
-                let origin_addr = match origin {
-                    SocketAddr::V4(v4) => { v4 }
-                    SocketAddr::V6(v6) => panic!("Address of light should not be IPv6: {}", v6)
-                };
-
-                match Light::from_fields(&headers, origin_addr) {
+                match Light::from_fields(&headers) {
                     Ok(mut new_light) => {
                         if !lights.contains(&new_light) {
-                            match new_light.init() {
-                                Ok(_) => { lights.insert(new_light); }
-                                _ => () // ignore errors
+                            if let Ok(()) = new_light.init() {
+                                lights.insert(new_light);
                             }
                         }
                     }
@@ -87,7 +81,7 @@ impl YeeClient {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, TcpStream, TcpListener};
+    use std::net::{IpAddr, TcpListener, TcpStream};
 
     use super::*;
 
@@ -177,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn find_correct_lights() -> anyhow::Result<()> {
+    fn find_correct_lights_and_initialized() -> anyhow::Result<()> {
         // GIVEN
         let client_port = 34434;
         let multicast_port = 50945;
@@ -215,7 +209,6 @@ sat: 100\r
 name: light_one\r\n";
         fake_light_1.send_to(fake_msg_1.as_bytes(), client_addr)?;
         drop(fake_light_1);
-        let fake_listener_1 = TcpListener::bind(fake_addr_1)?;
 
         let fake_addr_2 = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 23449);
         let fake_light_2 = UdpSocket::bind(fake_addr_2)?;
@@ -240,7 +233,6 @@ sat: 98\r
 name: light_one\r\n";
         fake_light_2.send_to(fake_msg_2.as_bytes(), client_addr)?;
         drop(fake_light_2);
-        let fake_listener_2 = TcpListener::bind(fake_addr_2)?;
 
         let fake_addr_3 = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 13445);
         let fake_light_3 = UdpSocket::bind(fake_addr_3)?;
@@ -265,13 +257,20 @@ sat: 45\r
 name: light_one\r\n";
         fake_light_3.send_to(fake_msg_3.as_bytes(), client_addr)?;
         drop(fake_light_3);
-        let fake_listener_3 = TcpListener::bind(fake_addr_3)?;
+
+        println!("lol");
+        let _fake_listener_1 = TcpListener::bind(fake_addr_1)?;
+        let _fake_listener_2 = TcpStream::connect(fake_addr_2)?;
+        let _fake_listener_3 = TcpStream::connect(fake_addr_3)?;
 
         // WHEN
+        println!("poo");
         let result = client.get_response(Duration::from_millis(500));
+        println!("frick");
 
         // THEN
         assert_eq!(result.len(), 3);
+        assert!(result.iter().all(|light| light.connection.is_some()));
 
         Ok(())
     }
@@ -315,7 +314,7 @@ sat: 98\r
 name: light_one\r\n";
         fake_light_1.send_to(fake_msg_1.as_bytes(), client_addr)?;
         drop(fake_light_1);
-        let fake_listener_1 = TcpListener::bind(fake_addr_1)?;
+        let _fake_listener_1 = TcpListener::bind(fake_addr_1)?;
 
         // when
         let result = client.get_response(Duration::from_millis(500));
@@ -373,7 +372,7 @@ name: light_one\r\n";
         fake_light.send_to(fake_msg.as_bytes(), client_addr)?;
         fake_light.send_to(fake_msg.as_bytes(), client_addr)?;
         drop(fake_light);
-        let fake_listener = TcpListener::bind(fake_addr)?;
+        let _fake_listener = TcpListener::bind(fake_addr)?;
 
         // WHEN
         let result = client.get_response(Duration::from_millis(500));
