@@ -62,15 +62,12 @@ impl YeeClient {
                         let value = String::from_utf8_lossy(h.value);
                         (name, value)
                     }).collect();
-                match Light::from_fields(&headers) {
-                    Ok(mut new_light) => {
-                        if !lights.contains(&new_light) {
-                            if let Ok(()) = new_light.init() {
-                                lights.insert(new_light);
-                            }
+                if let Ok(mut new_light) = Light::from_fields(&headers) {
+                    if !lights.contains(&new_light) {
+                        if let Ok(()) = new_light.init() {
+                            lights.insert(new_light);
                         }
                     }
-                    Err(_) => {}
                 }
             }
         }
@@ -81,7 +78,7 @@ impl YeeClient {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, TcpListener, TcpStream};
+    use std::net::{IpAddr, TcpListener};
 
     use super::*;
 
@@ -193,7 +190,7 @@ mod tests {
 Cache-Control: max-age=3600\r
 Date: \r
 Ext: \r
-Location: yeelight://192.168.1.123:12345\r
+Location: yeelight://127.0.0.1:9889\r
 Server: POSIX UPnP/1.0 YGLC/1\r
 id: 0x12345abcde\r
 model: ceiling3\r
@@ -217,7 +214,7 @@ name: light_one\r\n";
 Cache-Control: max-age=3600\r
 Date: \r
 Ext: \r
-Location: yeelight://192.168.1.234:54321\r
+Location: yeelight://127.0.0.1:23449\r
 Server: POSIX UPnP/1.0 YGLC/1\r
 id: 0xabcde12345\r
 model: lamp\r
@@ -241,7 +238,7 @@ name: light_one\r\n";
 Cache-Control: max-age=3600\r
 Date: \r
 Ext: \r
-Location: yeelight://192.168.1.231:12332\r
+Location: yeelight://127.0.0.1:13445\r
 Server: POSIX UPnP/1.0 YGLC/1\r
 id: 0x23498dhf94398h\r
 model: mono\r
@@ -258,15 +255,12 @@ name: light_one\r\n";
         fake_light_3.send_to(fake_msg_3.as_bytes(), client_addr)?;
         drop(fake_light_3);
 
-        println!("lol");
         let _fake_listener_1 = TcpListener::bind(fake_addr_1)?;
-        let _fake_listener_2 = TcpStream::connect(fake_addr_2)?;
-        let _fake_listener_3 = TcpStream::connect(fake_addr_3)?;
+        let _fake_listener_2 = TcpListener::bind(fake_addr_2)?;
+        let _fake_listener_3 = TcpListener::bind(fake_addr_3)?;
 
         // WHEN
-        println!("poo");
         let result = client.get_response(Duration::from_millis(500));
-        println!("frick");
 
         // THEN
         assert_eq!(result.len(), 3);
@@ -299,7 +293,7 @@ name: light_one\r\n";
 Cache-Control: max-age=3600\r
 Date: \r
 Ext: \r
-Location: yeelight://192.168.1.234:54321\r
+Location: yeelight://127.0.0.1:56356\r
 Server: POSIX UPnP/1.0 YGLC/1\r
 id: 0xabcde12345\r
 model: lamp\r
@@ -348,7 +342,7 @@ name: light_one\r\n";
 Cache-Control: max-age=3600\r
 Date: \r
 Ext: \r
-Location: yeelight://192.168.1.123:12345\r
+Location: yeelight://127.0.0.1:23395\r
 Server: POSIX UPnP/1.0 YGLC/1\r
 id: 0x12345abcde\r
 model: ceiling3\r
@@ -372,6 +366,7 @@ name: light_one\r\n";
         fake_light.send_to(fake_msg.as_bytes(), client_addr)?;
         fake_light.send_to(fake_msg.as_bytes(), client_addr)?;
         drop(fake_light);
+
         let _fake_listener = TcpListener::bind(fake_addr)?;
 
         // WHEN
