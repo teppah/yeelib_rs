@@ -22,13 +22,13 @@ fn main() -> anyhow::Result<()> {
 
     loop {
         light.set_bright(1);
-        sleep(Duration::from_secs(6));
+        sleep(Duration::from_secs(4));
         light.set_bright(100);
-        sleep(Duration::from_secs(6));
+        sleep(Duration::from_secs(4));
     }
 
-    // let bright = "{\"id\":23,\"method\":\"set_bright\",\"params\":[100,\"smooth\",4000]}\r\n";
-    // let dark = "{\"id\":23,\"method\":\"set_bright\",\"params\":[1,\"smooth\",4000]error}\r\n";
+    // let bright = "{\"id\":23,\"method\":\"set_bright\",\"params\":[100,\"smooth\",400]}\r\n";
+    // let dark = "{\"id\":23,\"method\":\"set_bright\",\"params\":[1,\"smooth\",400]}\r\n";
     // let mut ceiling_light = TcpStream::connect("192.168.2.24:55443")?;
     // loop {
     //     let mut buf = [0u8; 128];

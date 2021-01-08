@@ -6,6 +6,8 @@ use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
 use regex::Regex;
 
+use serde_json::json;
+
 #[derive(Debug)]
 pub struct Light {
     location: SocketAddrV4,
@@ -38,6 +40,8 @@ pub struct Light {
 use lazy_static::*;
 use crate::req::Req;
 use std::io::{Write, Read};
+use serde_json::Value;
+use serde_json::value::Value::Number;
 lazy_static! {
     static ref MATCH_IP: Regex = Regex::new("yeelight://(.*)").unwrap();
 }
@@ -126,13 +130,13 @@ impl Light {
         let connection = self.connection.as_mut().unwrap();
         let req = Req::new(fastrand::u8(..) as i32,
                            "set_bright".to_string(),
-                           vec![brightness.to_string(), "smooth".to_string(), 4000.to_string()]);
-        let parsed = serde_json::to_string(&req).unwrap();
-        connection.write(parsed.as_bytes());
+                           vec![json!(brightness), json!("smooth"), json!(400)]);
+        let mut json = serde_json::to_string(&req).unwrap();
+        json.push_str("\r\n");
+        connection.write(json.as_bytes())?;
 
-        let mut buf = [0u8; 512];
-        connection.read(&mut buf);
-        println!("{}", String::from_utf8_lossy(&buf));
+        let mut buf = [0u8; 128];
+        connection.read(&mut buf)?;
         Ok(())
     }
 
