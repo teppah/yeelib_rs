@@ -36,6 +36,8 @@ pub struct Light {
 }
 
 use lazy_static::*;
+use crate::req::Req;
+use std::io::{Write, Read};
 lazy_static! {
     static ref MATCH_IP: Regex = Regex::new("yeelight://(.*)").unwrap();
 }
@@ -114,6 +116,23 @@ impl Light {
         }
         let connection = TcpStream::connect(self.location)?;
         self.connection = Some(connection);
+        Ok(())
+    }
+
+    pub fn set_bright(&mut self, brightness: u8) -> Result<(), YeeError> {
+        if !(1..=100).contains(&brightness) {
+            return Ok(());
+        }
+        let connection = self.connection.as_mut().unwrap();
+        let req = Req::new(fastrand::u8(..) as i32,
+                           "set_bright".to_string(),
+                           vec![brightness.to_string(), "smooth".to_string(), 4000.to_string()]);
+        let parsed = serde_json::to_string(&req).unwrap();
+        connection.write(parsed.as_bytes());
+
+        let mut buf = [0u8; 512];
+        connection.read(&mut buf);
+        println!("{}", String::from_utf8_lossy(&buf));
         Ok(())
     }
 
