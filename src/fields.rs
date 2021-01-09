@@ -75,6 +75,14 @@ impl Rgb {
     pub fn empty() -> Self {
         Rgb { red: 0, blue: 0, green: 0 }
     }
+
+    pub fn new(red: u8, green: u8, blue: u8) -> Self {
+        Rgb { red, green, blue }
+    }
+
+    pub fn get_num(&self) -> u32 {
+        self.red as u32 * 65536 + self.green as u32 * 256 + self.blue as u32
+    }
 }
 
 impl Display for Rgb {

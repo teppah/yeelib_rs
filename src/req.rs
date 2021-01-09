@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Req {
@@ -14,9 +15,47 @@ impl Req {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Transition {
+    Sudden,
+    Smooth {
+        // minimum 30ms
+        duration: Duration
+    },
+}
+
+impl Transition {
+    pub fn sudden() -> Transition {
+        Self::Sudden
+    }
+    pub fn smooth(duration: Duration) -> Option<Transition> {
+        if duration < Duration::from_millis(30) || duration.as_millis() > u64::MAX as u128 {
+            None
+        } else {
+            Some(Self::Smooth { duration })
+        }
+    }
+
+    pub fn text(&self) -> &'static str {
+        match self {
+            Self::Sudden => "sudden",
+            Self::Smooth { .. } => "smooth"
+        }
+    }
+
+    pub fn value(&self) -> u64 {
+        match self {
+            // is ignored anyway
+            Self::Sudden => 0,
+            Self::Smooth { duration } => duration.as_millis() as u64
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
-    use crate::req::Req;
+    use super::*;
 
     #[test]
     fn test() {}
