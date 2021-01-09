@@ -27,7 +27,7 @@ impl FromStr for PowerStatus {
         match s {
             "on" => Ok(Self::On),
             "off" => Ok(Self::Off),
-            _ => Err(YeeError::ParseFieldError { field_name: "power_status", source: None })
+            _ => Err(YeeError::ParseFieldFailed { field_name: "power_status", source: None })
         }
     }
 }
@@ -58,7 +58,7 @@ impl FromStr for ColorMode {
             "1" => Ok(ColorMode::Color),
             "2" => Ok(ColorMode::ColorTemperature),
             "3" => Ok(ColorMode::Hsv),
-            _ => Err(YeeError::ParseFieldError { field_name: "color_mode", source: None })
+            _ => Err(YeeError::ParseFieldFailed { field_name: "color_mode", source: None })
         }
     }
 }
@@ -98,10 +98,10 @@ impl FromStr for Rgb {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let val = match s.parse::<u32>() {
             Ok(v) => v,
-            Err(e) => { return Err(YeeError::ParseFieldError { source: Some(e), field_name: "rgb" }); }
+            Err(e) => { return Err(YeeError::ParseFieldFailed { source: Some(e), field_name: "rgb" }); }
         };
         if !(0..=HEX_FFFFFF).contains(&val) {
-            Err(YeeError::ParseFieldError { field_name: "rgb", source: None })
+            Err(YeeError::ParseFieldFailed { field_name: "rgb", source: None })
         } else {
             // https://math.stackexchange.com/questions/1635999/algorithm-to-convert-integer-to-3-variables-rgb
             let blue = (val % 256) as u8;

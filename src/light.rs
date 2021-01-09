@@ -60,7 +60,7 @@ macro_rules! get_field {
             .and_then(|s| {
                 let s = s.as_ref();
                 s.parse::<$target_type>()
-                    .map_err(|e| YeeError::ParseFieldError { field_name: stringify!($field), source: Some(e)})
+                    .map_err(|e| YeeError::ParseFieldFailed { field_name: stringify!($field), source: Some(e)})
             })
     };
     // for custom FromStr types
@@ -95,15 +95,15 @@ impl Light {
         let location = get_field!(fields,"Location")?;
         let captures = MATCH_IP
             .captures(location)
-            .ok_or(YeeError::ParseFieldError { field_name: "Location", source: None })
+            .ok_or(YeeError::ParseFieldFailed { field_name: "Location", source: None })
             .and_then(|c| c
                 .get(1)
-                .ok_or(YeeError::ParseFieldError { field_name: "Location", source: None })
+                .ok_or(YeeError::ParseFieldFailed { field_name: "Location", source: None })
             )
             .and_then(|m| m
                 .as_str()
                 .parse::<SocketAddr>()
-                .map_err(|_| YeeError::ParseFieldError { field_name: "Location", source: None })
+                .map_err(|_| YeeError::ParseFieldFailed { field_name: "Location", source: None })
             )
             ?;
         let location = match captures {
@@ -124,9 +124,12 @@ impl Light {
     }
 
     pub fn set_ct_abx(&mut self, temperature: u16, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_ct_abx") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_ct_abx" });
+        }
         // SPEC IS WRONG: temperature bounds should be 2700-6500
         if !(2700..=6500).contains(&temperature) {
-            return Ok(());
+            return Err(YeeError::InvalidValue { field_name: "ct", value: temperature.to_string() });
         }
         let connection = self.connection.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
@@ -145,9 +148,11 @@ impl Light {
     }
 
     pub fn set_bright(&mut self, brightness: u8, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_bright") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_bright" });
+        }
         if !(1..=100).contains(&brightness) {
-            // TODO: handle not correct parameter
-            return Ok(());
+            return Err(YeeError::InvalidValue { field_name: "bright", value: brightness.to_string() });
         }
         let connection = self.connection.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
@@ -165,6 +170,9 @@ impl Light {
     }
 
     pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_rgb") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
+        }
         let connection = self.connection.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,

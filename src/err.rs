@@ -4,21 +4,27 @@ use std::num::ParseIntError;
 
 #[derive(Debug)]
 pub enum YeeError {
-    ParseFieldError { field_name: &'static str, source: Option<ParseIntError> },
+    ParseFieldFailed { field_name: &'static str, source: Option<ParseIntError> },
     FieldNotFound { field_name: &'static str },
     IoError { source: std::io::Error },
+    MethodNotSupported { method_name: &'static str },
+    InvalidValue { field_name: &'static str, value: String },
 }
 
 impl Display for YeeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", match self {
-            YeeError::ParseFieldError { .. } => "ParseFieldError",
+            YeeError::ParseFieldFailed { .. } => "ParseFieldFailed",
             YeeError::FieldNotFound { .. } => "FieldNotFound",
-            YeeError::IoError { .. } => "IoError"
+            YeeError::IoError { .. } => "IoError",
+            YeeError::MethodNotSupported { .. } => "MethodNotSupported",
+            YeeError::InvalidValue { .. } => "InvalidValue"
         }, match self {
-            YeeError::ParseFieldError { field_name, .. } => format!("failed to parse required field: {}", field_name),
+            YeeError::ParseFieldFailed { field_name, .. } => format!("failed to parse required field: {}", field_name),
             YeeError::FieldNotFound { field_name } => format!("did not find the required field: {}", field_name),
-            YeeError::IoError { source } => format!("IO error: {}", source)
+            YeeError::IoError { source } => format!("IO error: {}", source),
+            YeeError::MethodNotSupported { method_name } => format!("cannot use method: {}", method_name),
+            YeeError::InvalidValue { field_name, value } => format!("invalid value for {}: {}", field_name, value)
         })
     }
 }
@@ -26,9 +32,9 @@ impl Display for YeeError {
 impl Error for YeeError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            YeeError::ParseFieldError { source, .. } => source.as_ref().map(|v| v as _),
-            YeeError::FieldNotFound { .. } => None,
-            YeeError::IoError { source } => Some(source)
+            YeeError::ParseFieldFailed { source, .. } => source.as_ref().map(|v| v as _),
+            YeeError::IoError { source } => Some(source),
+            _ => None
         }
     }
 }
