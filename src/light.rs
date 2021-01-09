@@ -38,7 +38,7 @@ pub struct Light {
 }
 
 use lazy_static::*;
-use crate::req::Req;
+use crate::req::{Req, Transition};
 use std::io::{Write, Read};
 use serde_json::Value;
 use serde_json::value::Value::Number;
@@ -123,20 +123,61 @@ impl Light {
         Ok(())
     }
 
-    pub fn set_bright(&mut self, brightness: u8) -> Result<(), YeeError> {
-        if !(1..=100).contains(&brightness) {
+    pub fn set_ct_abx(&mut self, temperature: u16, transition: Transition) -> Result<(), YeeError> {
+        // SPEC IS WRONG: temperature bounds should be 2700-6500
+        if !(2700..=6500).contains(&temperature) {
             return Ok(());
         }
         let connection = self.connection.as_mut().unwrap();
-        let req = Req::new(fastrand::u8(..) as i32,
+        let rand_val = fastrand::i32(1..65536);
+        let req = Req::new(rand_val,
+                           "set_ct_abx".to_string(),
+                           vec![json!(temperature), json!(transition.text()), json!(transition.value())]);
+        let mut json = serde_json::to_string(&req).unwrap();
+        json.push_str("\r\n");
+        println!("{}", json);
+        connection.write(json.as_bytes())?;
+
+        let mut buf = [0u8; 128];
+        connection.read(&mut buf)?;
+        self.ct = temperature;
+        Ok(())
+    }
+
+    pub fn set_bright(&mut self, brightness: u8, transition: Transition) -> Result<(), YeeError> {
+        if !(1..=100).contains(&brightness) {
+            // TODO: handle not correct parameter
+            return Ok(());
+        }
+        let connection = self.connection.as_mut().unwrap();
+        let rand_val = fastrand::i32(1..65536);
+        let req = Req::new(rand_val,
                            "set_bright".to_string(),
-                           vec![json!(brightness), json!("smooth"), json!(400)]);
+                           vec![json!(brightness), json!(transition.text()), json!(transition.value())]);
         let mut json = serde_json::to_string(&req).unwrap();
         json.push_str("\r\n");
         connection.write(json.as_bytes())?;
 
         let mut buf = [0u8; 128];
         connection.read(&mut buf)?;
+        self.bright = brightness;
+        Ok(())
+    }
+
+    pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
+        let connection = self.connection.as_mut().unwrap();
+        let rand_val = fastrand::i32(1..65536);
+        let req = Req::new(rand_val,
+                           "set_rgb".to_string(),
+                           vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
+        let mut json = serde_json::to_string(&req).unwrap();
+        json.push_str("\r\n");
+        connection.write(json.as_bytes())?;
+
+        let mut buf = [0u8; 128];
+        connection.read(&mut buf)?;
+        println!("{}", String::from_utf8_lossy(&buf));
+        self.rgb = rgb;
         Ok(())
     }
 
