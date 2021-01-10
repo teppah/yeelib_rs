@@ -3,15 +3,20 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// this is a req
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Req {
-    id: i32,
-    method: String,
-    params: Vec<Value>,
+    pub id: i32,
+    pub method: String,
+    pub params: Vec<Value>,
 }
 
 impl Req {
-    pub fn new(id: i32, method: String, params: Vec<Value>) -> Req {
+    pub fn with_id(id: i32, method: String, params: Vec<Value>) -> Req {
+        Req { id, method, params }
+    }
+    pub fn new(method: String, params: Vec<Value>) -> Req {
+        let id = fastrand::i32(1..65536);
         Req { id, method, params }
     }
 }

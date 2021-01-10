@@ -131,23 +131,9 @@ impl Light {
         if !(2700..=6500).contains(&temperature) {
             return Err(YeeError::InvalidValue { field_name: "ct", value: temperature.to_string() });
         }
-        let rand_val = fastrand::i32(1..65536);
-        let req = Req::new(rand_val,
-                           "set_ct_abx".to_string(),
+        let req = Req::new("set_ct_abx".to_string(),
                            vec![json!(temperature), json!(transition.text()), json!(transition.value())]);
-        let mut json = serde_json::to_string(&req).unwrap();
-        let reader = self.read.as_mut().unwrap();
-        let writer = self.write.as_mut().unwrap();
-        json.push_str("\r\n");
-        writer.write_all(json.as_bytes())?;
-        writer.flush()?;
-
-        let mut buf = String::new();
-        let rand_val = rand_val.to_string();
-        while !buf.contains(rand_val.as_str()) {
-            reader.read_line(&mut buf)?;
-        }
-        println!("{}", buf);
+        self.send_req(&req)?;
         self.ct = temperature;
         Ok(())
     }
@@ -159,14 +145,30 @@ impl Light {
         if !(1..=100).contains(&brightness) {
             return Err(YeeError::InvalidValue { field_name: "bright", value: brightness.to_string() });
         }
-        let rand_val = fastrand::i32(1..65536);
-        let req = Req::new(rand_val,
-                           "set_bright".to_string(),
-                           vec![json!(brightness), json!(transition.text()), json!(transition.value())]);
-        let mut json = serde_json::to_string(&req).unwrap();
-        json.push_str("\r\n");
+        let req = Req::new("set_bright".to_string(),
+                           vec![json!(brightness), json!(transition.text()), json!("asdf"), json!(transition.value())]);
+        self.send_req(&req)?;
+        self.bright = brightness;
+        Ok(())
+    }
+
+    pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_rgb") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
+        }
+        let req = Req::new("set_rgb".to_string(),
+                           vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
+        self.send_req(&req)?;
+        self.rgb = rgb;
+        Ok(())
+    }
+
+    pub(crate) fn send_req(&mut self, req: &Req) -> Result<(), YeeError> {
+        let rand_val = req.id.to_string();
+        let mut json = serde_json::to_string(req).unwrap();
         let reader = self.read.as_mut().unwrap();
         let writer = self.write.as_mut().unwrap();
+        json.push_str("\r\n");
         writer.write_all(json.as_bytes())?;
         writer.flush()?;
 
@@ -176,31 +178,6 @@ impl Light {
             reader.read_line(&mut buf)?;
         }
         println!("{}", buf);
-        self.bright = brightness;
-        Ok(())
-    }
-
-    pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_rgb") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
-        }
-        let rand_val = fastrand::i32(1..65536);
-        let req = Req::new(rand_val,
-                           "set_rgb".to_string(),
-                           vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
-        let mut json = serde_json::to_string(&req).unwrap();
-        let reader = self.read.as_mut().unwrap();
-        let writer = self.write.as_mut().unwrap();
-        json.push_str("\r\n");
-        writer.write_all(json.as_bytes())?;
-        writer.flush()?;
-
-        let mut buf = String::new();
-        let rand_val = rand_val.to_string();
-        while !buf.contains(rand_val.as_str()) {
-            reader.read_line(&mut buf)?;
-        }
-        self.rgb = rgb;
         Ok(())
     }
 

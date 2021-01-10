@@ -9,6 +9,7 @@ pub enum YeeError {
     IoError { source: std::io::Error },
     MethodNotSupported { method_name: &'static str },
     InvalidValue { field_name: &'static str, value: String },
+    ChangeFailed { field_name: &'static str, message: String },
 }
 
 impl Display for YeeError {
@@ -18,13 +19,15 @@ impl Display for YeeError {
             YeeError::FieldNotFound { .. } => "FieldNotFound",
             YeeError::IoError { .. } => "IoError",
             YeeError::MethodNotSupported { .. } => "MethodNotSupported",
-            YeeError::InvalidValue { .. } => "InvalidValue"
+            YeeError::InvalidValue { .. } => "InvalidValue",
+            YeeError::ChangeFailed { .. } => "ChangeFailed"
         }, match self {
             YeeError::ParseFieldFailed { field_name, .. } => format!("failed to parse required field: {}", field_name),
             YeeError::FieldNotFound { field_name } => format!("did not find the required field: {}", field_name),
             YeeError::IoError { source } => format!("IO error: {}", source),
             YeeError::MethodNotSupported { method_name } => format!("cannot use method: {}", method_name),
-            YeeError::InvalidValue { field_name, value } => format!("invalid value for {}: {}", field_name, value)
+            YeeError::InvalidValue { field_name, value } => format!("invalid value for {}: {}", field_name, value),
+            YeeError::ChangeFailed { field_name, message } => format!("changing {} failed: {}", field_name, message)
         })
     }
 }
