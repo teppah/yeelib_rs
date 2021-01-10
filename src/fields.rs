@@ -11,6 +11,15 @@ pub enum PowerStatus {
     Off,
 }
 
+impl PowerStatus {
+    pub fn flip(&self) -> PowerStatus {
+        match self {
+            Self::Off => Self::On,
+            Self::On => Self::Off
+        }
+    }
+}
+
 impl Display for PowerStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
@@ -88,7 +97,7 @@ impl Rgb {
 impl Display for Rgb {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let hex = self.red as u32 * 256 * 256 + self.green as u32 * 256 + self.blue as u32;
-        write!(f, "#{:X}", hex)
+        write!(f, "#{:x}", hex)
     }
 }
 

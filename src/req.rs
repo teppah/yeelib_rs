@@ -6,17 +6,17 @@ use serde_json::Value;
 /// this is a req
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Req {
-    pub id: i32,
+    pub id: u16,
     pub method: String,
     pub params: Vec<Value>,
 }
 
 impl Req {
-    pub fn with_id(id: i32, method: String, params: Vec<Value>) -> Req {
+    pub fn with_id(id: u16, method: String, params: Vec<Value>) -> Req {
         Req { id, method, params }
     }
     pub fn new(method: String, params: Vec<Value>) -> Req {
-        let id = fastrand::i32(1..65536);
+        let id = fastrand::u16(..);
         Req { id, method, params }
     }
 }

@@ -193,6 +193,16 @@ impl Light {
         Ok(())
     }
 
+    pub fn toggle(&mut self) -> Result<(), YeeError> {
+        if !self.support.contains("toggle") {
+            return Err(YeeError::MethodNotSupported { method_name: "toggle" });
+        }
+        let req = Req::new("toggle".to_string(), vec![]);
+        self.send_req(&req)?;
+        self.power = self.power.flip();
+        Ok(())
+    }
+
     pub(crate) fn send_req(&mut self, req: &Req) -> Result<(), YeeError> {
         let rand_val = req.id.to_string();
         let mut json = serde_json::to_string(req).unwrap();
@@ -207,12 +217,13 @@ impl Light {
         while !buf.contains(rand_val.as_str()) {
             reader.read_line(&mut buf)?;
         }
+        println!("{}", buf);
         if buf.contains("error") {
             let s =
                 MATCH_ERR_MSG.captures(&buf)
                     .and_then(|c| c.get(0))
                     .map(|s| s.as_str().to_string())
-                    .unwrap_or("".to_string());
+                    .unwrap_or_else(String::new);
             Err(YeeError::ChangeFailed { message: s })
         } else {
             Ok(())
