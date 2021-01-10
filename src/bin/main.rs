@@ -13,6 +13,7 @@ fn main() -> Result<(), YeeError> {
     let client = YeeClient::new()?;
     let mut res: Vec<Light> = loop {
         let lights = client.get_response(Duration::from_secs(1));
+        // sometimes, it doesn't find anything, so rerun
         if lights.len() == 0 {
             println!("zero");
         } else {
