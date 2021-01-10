@@ -1,12 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::net::{SocketAddrV4, TcpStream, SocketAddr};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::net::{SocketAddr, SocketAddrV4, TcpStream};
+
+use lazy_static::*;
+use regex::Regex;
+use serde_json::json;
 
 use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
-use regex::Regex;
-
-use serde_json::json;
+use crate::req::{Req, Transition};
 
 #[derive(Debug)]
 pub struct Light {
@@ -38,11 +41,6 @@ pub struct Light {
     pub(crate) write: Option<BufWriter<TcpStream>>,
 }
 
-use lazy_static::*;
-use crate::req::{Req, Transition};
-use std::io::{Write, Read, BufReader, BufRead, BufWriter};
-use serde_json::Value;
-use serde_json::value::Value::Number;
 lazy_static! {
     static ref MATCH_IP: Regex = Regex::new("yeelight://(.*)").unwrap();
 }
@@ -133,19 +131,22 @@ impl Light {
         if !(2700..=6500).contains(&temperature) {
             return Err(YeeError::InvalidValue { field_name: "ct", value: temperature.to_string() });
         }
-        let reader = self.read.as_mut().unwrap();
-        let writer = self.write.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,
                            "set_ct_abx".to_string(),
                            vec![json!(temperature), json!(transition.text()), json!(transition.value())]);
         let mut json = serde_json::to_string(&req).unwrap();
+        let reader = self.read.as_mut().unwrap();
+        let writer = self.write.as_mut().unwrap();
         json.push_str("\r\n");
-        println!("{}", json);
         writer.write_all(json.as_bytes())?;
+        writer.flush()?;
 
         let mut buf = String::new();
-        reader.read_line(&mut buf)?;
+        let rand_val = rand_val.to_string();
+        while !buf.contains(rand_val.as_str()) {
+            reader.read_line(&mut buf)?;
+        }
         println!("{}", buf);
         self.ct = temperature;
         Ok(())
@@ -158,18 +159,22 @@ impl Light {
         if !(1..=100).contains(&brightness) {
             return Err(YeeError::InvalidValue { field_name: "bright", value: brightness.to_string() });
         }
-        let reader = self.read.as_mut().unwrap();
-        let writer = self.write.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,
                            "set_bright".to_string(),
                            vec![json!(brightness), json!(transition.text()), json!(transition.value())]);
         let mut json = serde_json::to_string(&req).unwrap();
         json.push_str("\r\n");
+        let reader = self.read.as_mut().unwrap();
+        let writer = self.write.as_mut().unwrap();
         writer.write_all(json.as_bytes())?;
+        writer.flush()?;
 
         let mut buf = String::new();
-        reader.read_line(&mut buf)?;
+        let rand_val = rand_val.to_string();
+        while !buf.contains(rand_val.as_str()) {
+            reader.read_line(&mut buf)?;
+        }
         println!("{}", buf);
         self.bright = brightness;
         Ok(())
@@ -179,19 +184,22 @@ impl Light {
         if !self.support.contains("set_rgb") {
             return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
         }
-        let reader = self.read.as_mut().unwrap();
-        let writer = self.write.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,
                            "set_rgb".to_string(),
                            vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
         let mut json = serde_json::to_string(&req).unwrap();
+        let reader = self.read.as_mut().unwrap();
+        let writer = self.write.as_mut().unwrap();
         json.push_str("\r\n");
         writer.write_all(json.as_bytes())?;
+        writer.flush()?;
 
         let mut buf = String::new();
-        reader.read_line(&mut buf)?;
-        println!("{}", buf);
+        let rand_val = rand_val.to_string();
+        while !buf.contains(rand_val.as_str()) {
+            reader.read_line(&mut buf)?;
+        }
         self.rgb = rgb;
         Ok(())
     }
@@ -265,8 +273,8 @@ impl Eq for Light {}
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap};
-    use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, IpAddr};
+    use std::collections::HashMap;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddrV4, TcpListener};
 
     use super::*;
 

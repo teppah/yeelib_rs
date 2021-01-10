@@ -1,6 +1,7 @@
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
 use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Req {

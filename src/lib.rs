@@ -2,8 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 use std::time::{Duration, Instant};
 
-use serde_json::json;
-
 use crate::err::YeeError;
 use crate::light::Light;
 
