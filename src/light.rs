@@ -96,11 +96,8 @@ impl Light {
         let location = get_field!(fields,"Location")?;
         let captures = MATCH_IP
             .captures(location)
-            .ok_or(YeeError::ParseFieldFailed { field_name: "Location", source: None })
-            .and_then(|c| c
-                .get(1)
-                .ok_or(YeeError::ParseFieldFailed { field_name: "Location", source: None })
-            )
+            .and_then(|c| c.get(1))
+            .ok_or(YeeError::FieldNotFound { field_name: "Location" })
             .and_then(|m| m
                 .as_str()
                 .parse::<SocketAddr>()
@@ -331,6 +328,11 @@ mod tests {
         let support = "get_power set_power get_rgb set_rgb";
         m.insert("support", support);
         m
+    }
+
+    #[test]
+    fn send_correct_req() -> anyhow::Result<()> {
+        Ok(())
     }
 
     #[test]
