@@ -4,7 +4,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use yeelib_rs::err::YeeError;
-use yeelib_rs::fields::Rgb;
+use yeelib_rs::fields::{Rgb, PowerStatus};
 use yeelib_rs::light::Light;
 use yeelib_rs::req::Transition;
 use yeelib_rs::YeeClient;
@@ -31,6 +31,16 @@ fn main() -> anyhow::Result<()> {
 
         println!("bright");
         let result = light.set_bright(100, Transition::smooth(Duration::from_millis(1000)).unwrap());
+        println!("{:?}", result);
+        sleep(Duration::from_secs(4));
+
+        println!("off");
+        let result = light.set_power(PowerStatus::Off, Transition::sudden());
+        println!("{:?}", result);
+        sleep(Duration::from_secs(4));
+
+        println!("on");
+        let result = light.set_power(PowerStatus::On, Transition::sudden());
         println!("{:?}", result);
         sleep(Duration::from_secs(4));
 

@@ -10,6 +10,7 @@ use serde_json::json;
 use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
 use crate::req::{Req, Transition};
+use std::net::Shutdown::Read;
 
 #[derive(Debug)]
 pub struct Light {
@@ -139,6 +140,17 @@ impl Light {
         Ok(())
     }
 
+    pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_rgb") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
+        }
+        let req = Req::new("set_rgb".to_string(),
+                           vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
+        self.send_req(&req)?;
+        self.rgb = rgb;
+        Ok(())
+    }
+
     pub fn set_bright(&mut self, brightness: u8, transition: Transition) -> Result<(), YeeError> {
         if !self.support.contains("set_bright") {
             return Err(YeeError::MethodNotSupported { method_name: "set_bright" });
@@ -153,14 +165,31 @@ impl Light {
         Ok(())
     }
 
-    pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_rgb") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
+    pub fn set_hsv(&mut self, hue: u16, sat: u8, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_hsv") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_hsv" });
         }
-        let req = Req::new("set_rgb".to_string(),
-                           vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
+        if !(0..=359).contains(&hue) {
+            return Err(YeeError::InvalidValue { field_name: "hue", value: hue.to_string() });
+        } else if !(0..=100).contains(&sat) {
+            return Err(YeeError::InvalidValue { field_name: "sat", value: sat.to_string() });
+        }
+        let req = Req::new("set_hsv".to_string(),
+                           vec![json!(hue), json!(sat), json!(transition.text()), json!(transition.value())]);
         self.send_req(&req)?;
-        self.rgb = rgb;
+        self.hue = hue;
+        self.sat = sat;
+        Ok(())
+    }
+
+    pub fn set_power(&mut self, power: PowerStatus, transition: Transition) -> Result<(), YeeError> {
+        if !self.support.contains("set_power") {
+            return Err(YeeError::MethodNotSupported { method_name: "set_power" });
+        }
+        let req = Req::new("set_power".to_string(),
+                           vec![json!(power.to_string()), json!(transition.text()), json!(transition.value())]);
+        self.send_req(&req)?;
+        self.power = power;
         Ok(())
     }
 
@@ -430,6 +459,7 @@ mod tests {
 
         // then
         assert!(light.read.is_some());
+        assert!(light.write.is_some());
         Ok(())
     }
 }
