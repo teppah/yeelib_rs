@@ -42,7 +42,8 @@ pub struct Light {
 }
 
 lazy_static! {
-    static ref MATCH_IP: Regex = Regex::new("yeelight://(.*)").unwrap();
+    static ref MATCH_IP: Regex = Regex::new(r#"yeelight://(.*)"#).unwrap();
+    static ref MATCH_ERR_MSG: Regex = Regex::new(r#""message":"(.*)""#).unwrap();
 }
 
 macro_rules! get_field {
@@ -146,7 +147,7 @@ impl Light {
             return Err(YeeError::InvalidValue { field_name: "bright", value: brightness.to_string() });
         }
         let req = Req::new("set_bright".to_string(),
-                           vec![json!(brightness), json!(transition.text()), json!("asdf"), json!(transition.value())]);
+                           vec![json!(brightness), json!(transition.text()), json!(transition.value())]);
         self.send_req(&req)?;
         self.bright = brightness;
         Ok(())
@@ -177,8 +178,16 @@ impl Light {
         while !buf.contains(rand_val.as_str()) {
             reader.read_line(&mut buf)?;
         }
-        println!("{}", buf);
-        Ok(())
+        if buf.contains("error") {
+            let s =
+                MATCH_ERR_MSG.captures(&buf)
+                    .and_then(|c| c.get(0))
+                    .map(|s| s.as_str().to_string())
+                    .unwrap_or("".to_string());
+            Err(YeeError::ChangeFailed { message: s })
+        } else {
+            Ok(())
+        }
     }
 
     pub fn location(&self) -> &SocketAddrV4 {

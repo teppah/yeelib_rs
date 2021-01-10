@@ -25,11 +25,13 @@ fn main() -> anyhow::Result<()> {
 
     loop {
         println!("dark");
-        light.set_bright(1, Transition::sudden())?;
+        let result = light.set_bright(1, Transition::sudden());
+        println!("{:?}", result);
         sleep(Duration::from_secs(4));
 
         println!("bright");
-        light.set_bright(100, Transition::smooth(Duration::from_millis(1000)).unwrap())?;
+        let result = light.set_bright(100, Transition::smooth(Duration::from_millis(1000)).unwrap());
+        println!("{:?}", result);
         sleep(Duration::from_secs(4));
 
         // println!("2700");
