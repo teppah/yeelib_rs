@@ -267,7 +267,7 @@ name: light_one\r\n";
 
         // THEN
         assert_eq!(result.len(), 3);
-        assert!(result.iter().all(|light| light.connection.is_some()));
+        assert!(result.iter().all(|light| light.read.is_some()));
 
         Ok(())
     }

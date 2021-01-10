@@ -34,12 +34,13 @@ pub struct Light {
 
     // wrapped in option for late init
     // if successfully made a Light, can always assume it is valid
-    pub(crate) connection: Option<TcpStream>,
+    pub(crate) read: Option<BufReader<TcpStream>>,
+    pub(crate) write: Option<BufWriter<TcpStream>>,
 }
 
 use lazy_static::*;
 use crate::req::{Req, Transition};
-use std::io::{Write, Read};
+use std::io::{Write, Read, BufReader, BufRead, BufWriter};
 use serde_json::Value;
 use serde_json::value::Value::Number;
 lazy_static! {
@@ -111,15 +112,16 @@ impl Light {
             _ => panic!("Light should not have an IPv6 address")
         };
 
-        Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name, connection: None })
+        Ok(Light { location, id, model, fw_ver, power, support, bright, color_mode, ct, rgb, hue, sat, name, read: None, write: None })
     }
 
     pub(crate) fn init(&mut self) -> Result<(), YeeError> {
-        if self.connection.is_some() {
+        if self.read.is_some() {
             return Ok(());
         }
         let connection = TcpStream::connect(self.location)?;
-        self.connection = Some(connection);
+        self.write = Some(BufWriter::new(connection.try_clone()?));
+        self.read = Some(BufReader::new(connection));
         Ok(())
     }
 
@@ -131,7 +133,8 @@ impl Light {
         if !(2700..=6500).contains(&temperature) {
             return Err(YeeError::InvalidValue { field_name: "ct", value: temperature.to_string() });
         }
-        let connection = self.connection.as_mut().unwrap();
+        let reader = self.read.as_mut().unwrap();
+        let writer = self.write.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,
                            "set_ct_abx".to_string(),
@@ -139,10 +142,11 @@ impl Light {
         let mut json = serde_json::to_string(&req).unwrap();
         json.push_str("\r\n");
         println!("{}", json);
-        connection.write(json.as_bytes())?;
+        writer.write_all(json.as_bytes())?;
 
-        let mut buf = [0u8; 128];
-        connection.read(&mut buf)?;
+        let mut buf = String::new();
+        reader.read_line(&mut buf)?;
+        println!("{}", buf);
         self.ct = temperature;
         Ok(())
     }
@@ -154,17 +158,19 @@ impl Light {
         if !(1..=100).contains(&brightness) {
             return Err(YeeError::InvalidValue { field_name: "bright", value: brightness.to_string() });
         }
-        let connection = self.connection.as_mut().unwrap();
+        let reader = self.read.as_mut().unwrap();
+        let writer = self.write.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,
                            "set_bright".to_string(),
                            vec![json!(brightness), json!(transition.text()), json!(transition.value())]);
         let mut json = serde_json::to_string(&req).unwrap();
         json.push_str("\r\n");
-        connection.write(json.as_bytes())?;
+        writer.write_all(json.as_bytes())?;
 
-        let mut buf = [0u8; 128];
-        connection.read(&mut buf)?;
+        let mut buf = String::new();
+        reader.read_line(&mut buf)?;
+        println!("{}", buf);
         self.bright = brightness;
         Ok(())
     }
@@ -173,18 +179,19 @@ impl Light {
         if !self.support.contains("set_rgb") {
             return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
         }
-        let connection = self.connection.as_mut().unwrap();
+        let reader = self.read.as_mut().unwrap();
+        let writer = self.write.as_mut().unwrap();
         let rand_val = fastrand::i32(1..65536);
         let req = Req::new(rand_val,
                            "set_rgb".to_string(),
                            vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
         let mut json = serde_json::to_string(&req).unwrap();
         json.push_str("\r\n");
-        connection.write(json.as_bytes())?;
+        writer.write_all(json.as_bytes())?;
 
-        let mut buf = [0u8; 128];
-        connection.read(&mut buf)?;
-        println!("{}", String::from_utf8_lossy(&buf));
+        let mut buf = String::new();
+        reader.read_line(&mut buf)?;
+        println!("{}", buf);
         self.rgb = rgb;
         Ok(())
     }
@@ -428,7 +435,7 @@ mod tests {
         light.init()?;
 
         // then
-        assert!(light.connection.is_some());
+        assert!(light.read.is_some());
         Ok(())
     }
 }
