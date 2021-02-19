@@ -12,11 +12,8 @@ exactly as specified in the above spec.
 use std::time::Duration;
 use std::thread::sleep;
 
-use yeelib_rs::YeeClient;
-use yeelib_rs::light::Light;
-use yeelib_rs::err::YeeError;
-use yeelib_rs::req::Transition;
-use yeelib_rs::fields::PowerStatus;
+use yeelib_rs::{YeeClient, Light, YeeError};
+use yeelib_rs::fields::{PowerStatus, Transition};
 
 fn main() -> Result<(), YeeError> {
     let client = YeeClient::new()?;
@@ -55,7 +52,7 @@ toggle
 ## To do
 
 - Document every component
-- Flatten public exports
+- ~~Flatten public exports~~
 - Finish implementation of the API
 - Improve test coverage
 

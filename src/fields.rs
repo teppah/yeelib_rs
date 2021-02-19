@@ -1,6 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
+pub use crate::req::Transition;
 use crate::err::YeeError;
 
 const HEX_FFFFFF: u32 = 16777215;

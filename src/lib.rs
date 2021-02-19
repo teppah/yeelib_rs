@@ -6,13 +6,14 @@ use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 use std::time::{Duration, Instant};
 
-use crate::err::YeeError;
-use crate::light::Light;
 
 pub mod light;
 pub mod fields;
 pub mod err;
 pub mod req;
+
+pub use crate::err::YeeError;
+pub use crate::light::Light;
 
 pub const MULTICAST_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const MULTICAST_PORT: u16 = 1982;
