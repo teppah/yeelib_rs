@@ -199,8 +199,35 @@ impl Light {
         Ok(())
     }
 
-    pub fn adjust_bright(&mut self) -> Result<(), YeeError> {
-        check_support!(self, "adjust_bright");
+    pub fn adjust_bright(&mut self, bright_percentage: i8, transition: Transition) -> Result<(), YeeError> {
+        if !(-100 as i8..=100).contains(&bright_percentage) {
+            return Err(YeeError::InvalidValue { field_name: "bright", value: bright_percentage.to_string() });
+        }
+        check_support!(self, "adjust_bright")?;
+        let req = Req::new("adjust_bright".to_string(), vec![json!(bright_percentage), json!(transition.value())]);
+        self.send_req(&req)?;
+        self.bright += self.bright * bright_percentage as u8 / 100;
+        if bright_percentage > 0 {
+            self.bright += self.bright * bright_percentage as u16 / 100;
+        } else {
+            self.bright -= self.bright * bright_percentage.abs() as u16 / 100;
+        }
+        Ok(())
+    }
+
+    pub fn adjust_ct(&mut self, ct_percentage: i8, transition: Transition) -> Result<(), YeeError> {
+        check_support!(self, "adjust_ct")?;
+        if !(-100 as i8..=100).contains(&ct_percentage) {
+            return Err(YeeError::InvalidValue { field_name: "ct", value: ct_percentage.to_string() });
+        }
+        check_support!(self, "adjust_ct")?;
+        let req = Req::new("adjust_ct".to_string(), vec![json!(ct_percentage), json!(transition.value())]);
+        self.send_req(&req)?;
+        if ct_percentage > 0 {
+            self.ct += self.ct * ct_percentage as u16 / 100;
+        } else {
+            self.ct -= self.ct * ct_percentage.abs() as u16
+        }
         Ok(())
     }
 

@@ -51,6 +51,8 @@ set_hsv
 set_bright
 set_power
 toggle
+adjust_bright
+adjust_ct
 ```
 
 ## To do
