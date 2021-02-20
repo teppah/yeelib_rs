@@ -1,10 +1,12 @@
 # yeelib_rs
 
 ![Crates.io badge](https://img.shields.io/crates/v/yeelib_rs?style=flat-square)
+![License](https://img.shields.io/crates/l/yeelib_rs?style=flat-square)
 
 A Rust library for easy interfacing with Yeelight products, including LAN light discovery
-with [multicast](https://en.wikipedia.org/wiki/Multicast), with intended implementation of all major parts of
-the [Yeelight Third-party Control Protocol](https://www.yeelight.com/en_US/developer).
+with [multicast](https://en.wikipedia.org/wiki/Multicast)
+and [SSDP](https://en.wikipedia.org/wiki/Simple_Service_Discovery_Protocol), with intended implementation of all major
+parts of the [Yeelight Third-party Control Protocol](https://www.yeelight.com/en_US/developer).
 
 ## Getting started
 
@@ -20,7 +22,7 @@ use yeelib_rs::fields::{PowerStatus, Transition};
 
 fn main() -> Result<(), YeeError> {
     let client = YeeClient::new()?;
-    let mut lights: Vec<Light> = client.get_response(Duration::from_secs(1));
+    let mut lights: Vec<Light> = client.find_lights(Duration::from_secs(1));
 
     for light in lights.iter_mut() {
         light.set_power(PowerStatus::On, Transition::sudden())?;

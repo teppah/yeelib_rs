@@ -11,6 +11,7 @@ use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
 use crate::req::{Req, Transition};
 
+/// A struct representing an active light on the local network, with interface methods and fields.
 #[derive(Debug)]
 pub struct Light {
     location: SocketAddrV4,
@@ -87,7 +88,7 @@ macro_rules! check_support {
 }
 
 impl Light {
-    pub fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>) -> Result<Light, YeeError> {
+    pub(crate) fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>) -> Result<Light, YeeError> {
         let id = get_field!(fields, "id")?.to_string();
         let model = get_field!(fields, "model")?.to_string();
         let fw_ver = get_field!(fields, "fw_ver", u8)?;
@@ -168,7 +169,7 @@ impl Light {
     }
 
     pub fn set_hsv(&mut self, hue: u16, sat: u8, transition: Transition) -> Result<(), YeeError> {
-        check_support!(self, "set_hsv");
+        check_support!(self, "set_hsv")?;
         if !(0..=359).contains(&hue) {
             return Err(YeeError::InvalidValue { field_name: "hue", value: hue.to_string() });
         } else if !(0..=100).contains(&sat) {
@@ -183,7 +184,7 @@ impl Light {
     }
 
     pub fn set_power(&mut self, power: PowerStatus, transition: Transition) -> Result<(), YeeError> {
-        check_support!(self, "set_power");
+        check_support!(self, "set_power")?;
         let req = Req::new("set_power".to_string(),
                            vec![json!(power.to_string()), json!(transition.text()), json!(transition.value())]);
         self.send_req(&req)?;
@@ -206,11 +207,10 @@ impl Light {
         check_support!(self, "adjust_bright")?;
         let req = Req::new("adjust_bright".to_string(), vec![json!(bright_percentage), json!(transition.value())]);
         self.send_req(&req)?;
-        self.bright += self.bright * bright_percentage as u8 / 100;
         if bright_percentage > 0 {
-            self.bright += self.bright * bright_percentage as u16 / 100;
+            self.bright += self.bright * bright_percentage as u8 / 100;
         } else {
-            self.bright -= self.bright * bright_percentage.abs() as u16 / 100;
+            self.bright -= self.bright * bright_percentage.abs() as u8 / 100;
         }
         Ok(())
     }

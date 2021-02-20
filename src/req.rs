@@ -1,3 +1,11 @@
+//! fsadqqqqqqqqqq
+//!
+//!
+//!
+//! ssssssssssssasdfasdf
+//! asdfsad
+//! # examples
+//! asdfjklasdf
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};

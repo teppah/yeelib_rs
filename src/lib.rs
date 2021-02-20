@@ -1,7 +1,53 @@
 //!
 //!
 //!
-//! module level doc!!
+//! This library provides an interface to find and interact with Yeelight IoT smart lights present on the local network.
+//!
+//! It aims to be fully compliant with parts of the [Yeelight Third-party Control Protocol](https://www.yeelight.com/en_US/developer).
+//! Every method name and field name used in this library is named the same as, and behave exactly as the spec describes.
+//!
+//!
+//! # Usage
+//!
+//! To find existing lights on the local network, use [`YeeClient`].
+//! After obtaining a vector of [`Light`]s found, change their states with methods as named in the spec.
+//!
+//! ```no_run
+//! use yeelib_rs::{YeeClient, Light};
+//! use std::time::Duration;
+//! use yeelib_rs::req::Transition;
+//! use yeelib_rs::fields::PowerStatus;
+//! use std::thread::sleep;
+//!
+//! let client = YeeClient::new()?;
+//! let mut lights: Vec<Light> = client.find_lights(Duration::from_millis(500));
+//!
+//! // turn the lights on  with smooth 500ms transition
+//! for light in lights.iter_mut() {
+//!     light.set_power(PowerStatus::On, Transition::smooth(Duration::from_millis(500)).unwrap())?;
+//! }
+//!
+//! // let the lights finish changing
+//! sleep(Duration::from_secs(1));
+//!
+//! // set the color-temperature to 3500 with instant transition
+//! for light in lights.iter_mut() {
+//!     light.set_ct_abx(3500, Transition::sudden())?;
+//! }
+//!
+//! sleep(Duration::from_secs(1));
+//!
+//! // set the brightness to full with instant transition
+//! for light in lights.iter_mut() {
+//!     light.set_bright(100, Transition::sudden())?;
+//! }
+//!
+//! // toggle the power state
+//! for light in lights.iter_mut() {
+//!     light.toggle()?;
+//! }
+//! ```
+//!
 use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
 use std::time::{Duration, Instant};
@@ -15,17 +61,23 @@ pub mod req;
 pub use crate::err::YeeError;
 pub use crate::light::Light;
 
+/// Multicast IPv4 address that Yeelight products listen on for discovery.
 pub const MULTICAST_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
+/// Multicast port that Yeelight products listen on for discovery.
 pub const MULTICAST_PORT: u16 = 1982;
+/// Address to listen on all interfaces: 0.0.0.0
 pub const ALL_LOCAL: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+/// Default port for [`YeeClient`].
 pub const DEFAULT_LOCAL_PORT: u16 = 7821;
 
+/// Message that is broadcasted to [`MULTICAST_ADDR`].
 pub const SEARCH_MSG: &str = "\
     M-SEARCH * HTTP/1.1\r\n\
     HOST: 239.255.255.250:1982\r\n\
     MAN: \"ssdp:discover\"\r\n\
     ST: wifi_bulb";
 
+/// Find YeeLight IoT lights on the local network and initialize corresponding [`Light`]s.
 #[derive(Debug)]
 pub struct YeeClient {
     seeker: UdpSocket,
@@ -47,7 +99,7 @@ impl YeeClient {
         Ok(YeeClient { seeker: socket, multicast_addr })
     }
 
-    pub fn get_response(&self, timeout: Duration) -> Vec<Light> {
+    pub fn find_lights(&self, timeout: Duration) -> Vec<Light> {
         // TODO: handle send multicast fail
         self.seeker.send_to(SEARCH_MSG.as_bytes(), &self.multicast_addr).unwrap();
 
@@ -161,7 +213,7 @@ mod tests {
         let client = YeeClient { seeker: fake_sender, multicast_addr: fake_multicast_addr };
 
         // when
-        client.get_response(Duration::from_millis(500));
+        client.find_lights(Duration::from_millis(500));
 
         // then
         let mut recv_buffer = [0; 512];
@@ -266,7 +318,7 @@ name: light_one\r\n";
         let _fake_listener_3 = TcpListener::bind(fake_addr_3)?;
 
         // WHEN
-        let result = client.get_response(Duration::from_millis(500));
+        let result = client.find_lights(Duration::from_millis(500));
 
         // THEN
         assert_eq!(result.len(), 3);
@@ -317,7 +369,7 @@ name: light_one\r\n";
         let _fake_listener_1 = TcpListener::bind(fake_addr_1)?;
 
         // when
-        let result = client.get_response(Duration::from_millis(500));
+        let result = client.find_lights(Duration::from_millis(500));
 
         // THEN
         assert_eq!(result.len(), 0);
@@ -376,7 +428,7 @@ name: light_one\r\n";
         let _fake_listener = TcpListener::bind(fake_addr)?;
 
         // WHEN
-        let result = client.get_response(Duration::from_millis(500));
+        let result = client.find_lights(Duration::from_millis(500));
 
         // THEN
         assert_eq!(result.len(), 1);
