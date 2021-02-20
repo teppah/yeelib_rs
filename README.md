@@ -1,12 +1,15 @@
 # yeelib_rs
 
-A Rust library for easy interfacing with Yeelight products, including LAN light discovery with [multicast](https://en.wikipedia.org/wiki/Multicast),
-with intended implementation of all major parts of the [Yeelight Third-party Control Protocol](https://www.yeelight.com/en_US/developer). 
+![Crates.io badge](https://img.shields.io/crates/v/yeelib_rs?style=flat-square)
+
+A Rust library for easy interfacing with Yeelight products, including LAN light discovery
+with [multicast](https://en.wikipedia.org/wiki/Multicast), with intended implementation of all major parts of
+the [Yeelight Third-party Control Protocol](https://www.yeelight.com/en_US/developer).
 
 ## Getting started
 
-Unless otherwise specified, methods to adjust the light's parameters have the method name and behavior 
-exactly as specified in the above spec.
+Unless otherwise specified, methods to adjust the light's parameters have the method name and behavior exactly as
+specified in the above spec.
 
 ```rust
 use std::time::Duration;
@@ -18,24 +21,25 @@ use yeelib_rs::fields::{PowerStatus, Transition};
 fn main() -> Result<(), YeeError> {
     let client = YeeClient::new()?;
     let mut lights: Vec<Light> = client.get_response(Duration::from_secs(1));
-    
+
     for light in lights.iter_mut() {
         light.set_power(PowerStatus::On, Transition::sudden())?;
         sleep(Duration::from_secs(1));
-        
+
         light.set_bright(50, Transition::sudden())?;
         sleep(Duration::from_secs(1));
-        
-        light.set_ct_abx(3500, 
+
+        light.set_ct_abx(3500,
                          Transition::smooth(Duration::from_millis(400))
                              .unwrap())?;
         sleep(Duration::from_secs(2));
-        
+
         light.toggle()?;
     }
 }
 
 ```
+
 See [main.rs](src/bin/main.rs) for some more examples.
 
 ## Currently supported methods
@@ -55,6 +59,7 @@ toggle
 - ~~Flatten public exports~~
 - Finish implementation of the API
 - Improve test coverage
+- Handle API errors
 
 ## License
 
@@ -69,6 +74,5 @@ at your option.
 
 ## Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

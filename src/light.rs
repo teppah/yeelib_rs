@@ -10,7 +10,6 @@ use serde_json::json;
 use crate::err::YeeError;
 use crate::fields::{ColorMode, PowerStatus, Rgb};
 use crate::req::{Req, Transition};
-use std::net::Shutdown::Read;
 
 #[derive(Debug)]
 pub struct Light {
@@ -75,6 +74,18 @@ macro_rules! get_field {
     };
 }
 
+macro_rules! check_support {
+    ($self: expr, $method: expr) => {
+        {
+            if !$self.support.contains($method) {
+                Err(YeeError::MethodNotSupported { method_name: $method })
+            } else {
+                Ok(())
+            }
+        }
+    };
+}
+
 impl Light {
     pub fn from_fields<S: AsRef<str>>(fields: &HashMap<&str, S>) -> Result<Light, YeeError> {
         let id = get_field!(fields, "id")?.to_string();
@@ -123,9 +134,7 @@ impl Light {
     }
 
     pub fn set_ct_abx(&mut self, temperature: u16, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_ct_abx") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_ct_abx" });
-        }
+        check_support!(self, "set_ct_abx")?;
         // SPEC IS WRONG: temperature bounds should be 2700-6500
         if !(2700..=6500).contains(&temperature) {
             return Err(YeeError::InvalidValue { field_name: "ct", value: temperature.to_string() });
@@ -138,9 +147,7 @@ impl Light {
     }
 
     pub fn set_rgb(&mut self, rgb: Rgb, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_rgb") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_rgb" });
-        }
+        check_support!(self, "set_rgb")?;
         let req = Req::new("set_rgb".to_string(),
                            vec![json!(rgb.get_num()), json!(transition.text()), json!(transition.value())]);
         self.send_req(&req)?;
@@ -149,9 +156,7 @@ impl Light {
     }
 
     pub fn set_bright(&mut self, brightness: u8, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_bright") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_bright" });
-        }
+        check_support!(self, "set_bright")?;
         if !(1..=100).contains(&brightness) {
             return Err(YeeError::InvalidValue { field_name: "bright", value: brightness.to_string() });
         }
@@ -163,9 +168,7 @@ impl Light {
     }
 
     pub fn set_hsv(&mut self, hue: u16, sat: u8, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_hsv") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_hsv" });
-        }
+        check_support!(self, "set_hsv");
         if !(0..=359).contains(&hue) {
             return Err(YeeError::InvalidValue { field_name: "hue", value: hue.to_string() });
         } else if !(0..=100).contains(&sat) {
@@ -180,9 +183,7 @@ impl Light {
     }
 
     pub fn set_power(&mut self, power: PowerStatus, transition: Transition) -> Result<(), YeeError> {
-        if !self.support.contains("set_power") {
-            return Err(YeeError::MethodNotSupported { method_name: "set_power" });
-        }
+        check_support!(self, "set_power");
         let req = Req::new("set_power".to_string(),
                            vec![json!(power.to_string()), json!(transition.text()), json!(transition.value())]);
         self.send_req(&req)?;
@@ -191,12 +192,15 @@ impl Light {
     }
 
     pub fn toggle(&mut self) -> Result<(), YeeError> {
-        if !self.support.contains("toggle") {
-            return Err(YeeError::MethodNotSupported { method_name: "toggle" });
-        }
+        check_support!(self, "toggle")?;
         let req = Req::new("toggle".to_string(), vec![]);
         self.send_req(&req)?;
         self.power = self.power.flip();
+        Ok(())
+    }
+
+    pub fn adjust_bright(&mut self) -> Result<(), YeeError> {
+        check_support!(self, "adjust_bright");
         Ok(())
     }
 
@@ -214,7 +218,6 @@ impl Light {
         while !buf.contains(rand_val.as_str()) {
             reader.read_line(&mut buf)?;
         }
-        println!("{}", buf);
         if buf.contains("error") {
             let s =
                 MATCH_ERR_MSG.captures(&buf)

@@ -51,8 +51,8 @@ fn main() -> Result<(), YeeError> {
         light.set_ct_abx(6600, Transition::sudden());
         sleep(Duration::from_secs(4));
 
-        // light.set_rgb(Rgb::new(30, 40, 50), Transition::Sudden);
-        // sleep(Duration::from_secs(3));
+        light.set_rgb(Rgb::new(30, 40, 50), Transition::Sudden);
+        sleep(Duration::from_secs(3));
         println!("rgb");
         let result = light.set_rgb(Rgb::new(240, 40, 180), Transition::Sudden);
         println!("{:?}", result);
