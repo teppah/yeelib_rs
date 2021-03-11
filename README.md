@@ -8,7 +8,16 @@ with [multicast](https://en.wikipedia.org/wiki/Multicast)
 and [SSDP](https://en.wikipedia.org/wiki/Simple_Service_Discovery_Protocol), with intended implementation of all major
 parts of the [Yeelight Third-party Control Protocol](https://www.yeelight.com/en_US/developer).
 
+- [View on crates.io](https://crates.io/crates/yeelib_rs)
+- [Documentation](https://docs.rs/yeelib_rs/)
+
 ## Getting started
+
+Add the following to Cargo.toml:
+
+```toml
+yeelib_rs = "0.1.1"
+```
 
 Unless otherwise specified, methods to adjust the light's parameters have the method name and behavior exactly as
 specified in the above spec.
