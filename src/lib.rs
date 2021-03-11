@@ -18,33 +18,38 @@
 //! use yeelib_rs::req::Transition;
 //! use yeelib_rs::fields::PowerStatus;
 //! use std::thread::sleep;
+//! use std::error::Error;
 //!
-//! let client = YeeClient::new()?;
-//! let mut lights: Vec<Light> = client.find_lights(Duration::from_millis(500));
+//! fn main() -> Result<(), Box<dyn Error>> {
 //!
-//! // turn the lights on  with smooth 500ms transition
-//! for light in lights.iter_mut() {
-//!     light.set_power(PowerStatus::On, Transition::smooth(Duration::from_millis(500)).unwrap())?;
-//! }
+//!     let client = YeeClient::new()?;
+//!     let mut lights: Vec<Light> = client.find_lights(Duration::from_millis(500));
 //!
-//! // let the lights finish changing
-//! sleep(Duration::from_secs(1));
+//!     // turn the lights on  with smooth 500ms transition
+//!     for light in lights.iter_mut() {
+//!         light.set_power(PowerStatus::On, Transition::smooth(Duration::from_millis(500)).unwrap())?;
+//!     }
 //!
-//! // set the color-temperature to 3500 with instant transition
-//! for light in lights.iter_mut() {
-//!     light.set_ct_abx(3500, Transition::sudden())?;
-//! }
+//!     // let the lights finish changing
+//!     sleep(Duration::from_secs(1));
 //!
-//! sleep(Duration::from_secs(1));
+//!     // set the color-temperature to 3500 with instant transition
+//!     for light in lights.iter_mut() {
+//!         light.set_ct_abx(3500, Transition::sudden())?;
+//!     }
 //!
-//! // set the brightness to full with instant transition
-//! for light in lights.iter_mut() {
-//!     light.set_bright(100, Transition::sudden())?;
-//! }
+//!     sleep(Duration::from_secs(1));
 //!
-//! // toggle the power state
-//! for light in lights.iter_mut() {
-//!     light.toggle()?;
+//!     // set the brightness to full with instant transition
+//!     for light in lights.iter_mut() {
+//!         light.set_bright(100, Transition::sudden())?;
+//!     }
+//!
+//!     // toggle the power state
+//!     for light in lights.iter_mut() {
+//!         light.toggle()?;
+//!     }
+//!     Ok(())
 //! }
 //! ```
 //!
